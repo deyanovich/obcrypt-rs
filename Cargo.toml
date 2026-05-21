@@ -1,0 +1,30 @@
+[workspace]
+members = ["obcrypt"]
+resolver = "2"
+
+# Release / bench profiles at the workspace level so they actually
+# apply (Cargo silently ignores per-package profiles on non-root
+# members). LTO is important for the `oboron` consumer that depends
+# on this crate via path-dep — without it, cross-crate inlining of
+# the AEAD hot path doesn't happen.
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.0"
+license = "MIT"
+repository = "https://gitlab.com/oboron/obcrypt-rs"
+homepage = "https://oboron.org/"
+documentation = "https://oboron.org/obcrypt"
+authors = ["Bojan Đuričković"]
+
+[workspace.dependencies]
+# `hex` is the canonical text encoding for obcrypt keys.
+hex = "0.4"
