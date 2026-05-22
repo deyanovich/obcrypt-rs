@@ -1,0 +1,44 @@
+[package]
+name = "obcrypt-py"
+# Decoupled from the workspace version: the Python package on PyPI
+# follows its own release cadence, independent of the obcrypt Rust
+# crate on crates.io.
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+description = "Python bindings for obcrypt — bytes-in/bytes-out symmetric encryption (oboron protocol, a-tier + u-tier)."
+keywords = ["python", "encryption", "cryptography", "oboron"]
+categories = ["cryptography", "api-bindings"]
+readme = "README.md"
+# Not a crates.io publication target — this crate ships to PyPI via
+# maturin (see pyproject.toml), not to crates.io.
+publish = false
+
+[lib]
+name = "_obcrypt"
+crate-type = ["cdylib"]
+
+[features]
+default = ["secure-schemes"]
+
+# Tier groups (forwarded to obcrypt)
+atier = ["obcrypt/atier"]
+utier = ["obcrypt/utier"]
+secure-schemes = ["obcrypt/secure-schemes"]
+
+# Individual schemes (forwarded to obcrypt)
+aags = ["obcrypt/aags"]
+apgs = ["obcrypt/apgs"]
+aasv = ["obcrypt/aasv"]
+apsv = ["obcrypt/apsv"]
+upbc = ["obcrypt/upbc"]
+mock = ["obcrypt/mock"]
+
+[dependencies]
+obcrypt = { workspace = true, default-features = false }
+pyo3.workspace = true

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "obcrypt"
+dynamic = ["version"]
+requires-python = ">=3.8"
+description = "Python bindings for obcrypt — bytes-in/bytes-out symmetric encryption (oboron protocol, a-tier + u-tier)."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Bojan Đuričković" }
+]
+keywords = ["python", "encryption", "cryptography", "oboron"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://oboron.org/"
+Repository = "https://gitlab.com/oboron/obcrypt-rs"
+Documentation = "https://oboron.org/obcrypt"
+
+[tool.maturin]
+python-source = "python"
+module-name = "obcrypt._obcrypt"
