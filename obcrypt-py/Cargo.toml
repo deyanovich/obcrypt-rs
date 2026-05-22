@@ -3,7 +3,7 @@ name = "obcrypt-py"
 # Decoupled from the workspace version: the Python package on PyPI
 # follows its own release cadence, independent of the obcrypt Rust
 # crate on crates.io.
-version = "0.0.1"
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -24,14 +24,16 @@ name = "_obcrypt"
 crate-type = ["cdylib"]
 
 [features]
-default = ["secure-schemes"]
+# obcrypt is all-secure (a-tier authenticated, u-tier unauthenticated
+# but still real cryptography); there is no unsecure subset, so no
+# `secure-schemes` aggregate is needed at this layer. Default enables
+# the five production schemes directly.
+default = ["aags", "apgs", "aasv", "apsv", "upbc"]
 
-# Tier groups (forwarded to obcrypt)
-atier = ["obcrypt/atier"]
-utier = ["obcrypt/utier"]
-secure-schemes = ["obcrypt/secure-schemes"]
-
-# Individual schemes (forwarded to obcrypt)
+# Individual schemes — each forwards to obcrypt AND enables the local
+# feature flag that gates the binding code in `src/lib.rs`. Without the
+# local flag the binding for that scheme is silently omitted from the
+# module.
 aags = ["obcrypt/aags"]
 apgs = ["obcrypt/apgs"]
 aasv = ["obcrypt/aasv"]

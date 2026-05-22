@@ -1,0 +1,4 @@
+.venv
+python/obcrypt/__pycache__/
+python/obcrypt.egg-info/
+*.so
