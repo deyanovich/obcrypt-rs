@@ -8,7 +8,8 @@ dynamic = ["version"]
 requires-python = ">=3.8"
 description = "Python bindings for obcrypt — bytes-in/bytes-out symmetric encryption (oboron protocol, a-tier + u-tier)."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Bojan Đuričković" }
 ]

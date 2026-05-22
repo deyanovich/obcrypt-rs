@@ -7,6 +7,34 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 
+## [0.1.2] - 2026-05-22
+
+### Changed
+
+- License declaration migrated to PEP 639:
+  - `pyproject.toml`: `license = { text = "MIT" }` →
+    `license = "MIT"` (SPDX expression) plus
+    `license-files = ["LICENSE"]`.
+  - Wheel METADATA now emits `License-Expression: MIT` and
+    `License-File: LICENSE` (instead of the legacy
+    `License: MIT`).
+- README's `[LICENSE](...)` link is now an absolute URL
+  pointing at the public GitLab mirror. Relative `LICENSE`
+  links don't dereference in PyPI's rendered README — this
+  makes the link clickable on the PyPI project page.
+
+### Fixed
+
+- The LICENSE file is once again bundled in the wheel (at
+  `obcrypt-0.1.2.dist-info/licenses/LICENSE`). 0.1.0's wheel
+  shipped a LICENSE, 0.1.1 dropped it to work around the sdist
+  publish bug — the PEP 639 config (above) resolves the
+  publish bug without losing the bundled file.
+
+### Notes
+
+- No API or behavior changes.
+
 ## [0.1.1] - 2026-05-22
 
 ### Fixed

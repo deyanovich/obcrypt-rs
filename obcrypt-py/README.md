@@ -116,4 +116,5 @@ maturin develop --release
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see
+[LICENSE](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt-py/LICENSE).
