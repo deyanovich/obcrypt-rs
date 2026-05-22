@@ -147,9 +147,10 @@ sensitive paths (the `oboron` crate uses it on every `enc` /
 
 ## Cargo features
 
-See [`FEATURES.md`](FEATURES.md) for the full matrix. Default is
-`secure-schemes` (every production scheme). Schemes are individually
-gated so binary size scales with what you actually use.
+See [`FEATURES.md`](FEATURES.md) for the full matrix. By default
+every production scheme (`aags`, `apgs`, `aasv`, `apsv`, `upbc`) is
+enabled; schemes are individually gated so binary size scales with
+what you actually use.
 
 ## Versioning
 

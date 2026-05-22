@@ -8,15 +8,18 @@ crates.
 
 | Feature | Default | Enables | Pulls in |
 |---|---|---|---|
-| `secure-schemes` | ✓ | All production schemes | `atier` + `utier` |
-| `atier` | ✓ (via `secure-schemes`) | All a-tier schemes | `aags`, `apgs`, `aasv`, `apsv` |
-| `utier` | ✓ (via `secure-schemes`) | All u-tier schemes | `upbc` |
-| `aags` |  | Deterministic AES-GCM-SIV | `aes-gcm-siv` |
-| `apgs` |  | Probabilistic AES-GCM-SIV | `aes-gcm-siv` |
-| `aasv` |  | Deterministic AES-SIV | `aes-siv` |
-| `apsv` |  | Probabilistic AES-SIV | `aes-siv` |
-| `upbc` |  | Probabilistic AES-CBC | `aes`, `cipher`, `cbc` |
+| `aags` | ✓ | Deterministic AES-GCM-SIV | `aes-gcm-siv` |
+| `apgs` | ✓ | Probabilistic AES-GCM-SIV | `aes-gcm-siv` |
+| `aasv` | ✓ | Deterministic AES-SIV | `aes-siv` |
+| `apsv` | ✓ | Probabilistic AES-SIV | `aes-siv` |
+| `upbc` | ✓ | Probabilistic AES-CBC | `aes`, `cipher`, `cbc` |
 | `mock` |  | **Testing-only** mock1/mock2 | (none) |
+
+obcrypt is all-secure (a-tier authenticated, u-tier unauthenticated but
+still real cryptography), so there is no unsecure subset to distinguish
+from — no `secure-schemes` aggregate exists at this layer, and earlier
+`atier` / `utier` tier-group features have been removed (see the
+[changelog](CHANGELOG.md) for the 0.2.0 entry).
 
 ## Always-on dependencies
 
@@ -32,7 +35,7 @@ These are needed regardless of which schemes you enable:
 ### Default (all production schemes)
 
 ```toml
-obcrypt = "0.1"
+obcrypt = "0.2"
 ```
 
 Pulls in: `aes-gcm-siv`, `aes-siv`, `aes`, `cipher`, `cbc`.
@@ -42,7 +45,7 @@ Pulls in: `aes-gcm-siv`, `aes-siv`, `aes`, `cipher`, `cbc`.
 If you only need `aasv`:
 
 ```toml
-obcrypt = { version = "0.1", default-features = false, features = ["aasv"] }
+obcrypt = { version = "0.2", default-features = false, features = ["aasv"] }
 ```
 
 Pulls in: just `aes-siv`. The `aags`/`apgs`/`apsv`/`upbc` code paths
@@ -51,7 +54,7 @@ and their cipher crates are never compiled.
 ### a-tier only (no `upbc`)
 
 ```toml
-obcrypt = { version = "0.1", default-features = false, features = ["atier"] }
+obcrypt = { version = "0.2", default-features = false, features = ["aags", "apgs", "aasv", "apsv"] }
 ```
 
 Skips the AES-CBC code path entirely.
@@ -62,7 +65,7 @@ For unit tests / benchmarks that want the mock schemes:
 
 ```toml
 [dev-dependencies]
-obcrypt = { version = "0.1", features = ["mock"] }
+obcrypt = { version = "0.2", features = ["mock"] }
 ```
 
 Never enable `mock` in a production binary — `mock1` is the identity
@@ -80,6 +83,6 @@ function and `mock2` reverses bytes; neither performs encryption.
   [`Error::UnknownScheme`](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt/src/error.rs)
   on `decrypt`.
 - The framed payload format is identical across feature combinations
-  — a payload produced by a `secure-schemes` build can be decrypted
-  by a single-scheme build, as long as the receiver's enabled scheme
+  — a payload produced by a full-default build can be decrypted by a
+  single-scheme build, as long as the receiver's enabled scheme
   matches the producer's.

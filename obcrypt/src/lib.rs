@@ -135,10 +135,8 @@
 //!
 //! # Cargo features
 //!
-//! - `default = ["secure-schemes"]` — enables every production scheme.
-//! - `secure-schemes = ["atier", "utier"]` — convenience alias.
-//! - `atier = ["aags", "apgs", "aasv", "apsv"]` — every a-tier scheme.
-//! - `utier = ["upbc"]` — every u-tier scheme.
+//! - `default = ["aags", "apgs", "aasv", "apsv", "upbc"]` — every
+//!   production scheme.
 //! - Per-scheme: `aags`, `apgs`, `aasv`, `apsv`, `upbc`.
 //! - `mock` — adds [`Scheme::Mock1`] and [`Scheme::Mock2`] (testing only,
 //!   not for production).

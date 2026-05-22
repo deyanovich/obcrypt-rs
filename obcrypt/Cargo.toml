@@ -14,12 +14,11 @@ categories = ["cryptography", "no-std"]
 readme = "README.md"
 
 [features]
-default = ["secure-schemes"]
-
-# Tier groups
-atier = ["aags", "apgs", "aasv", "apsv"]
-utier = ["upbc"]
-secure-schemes = ["atier", "utier"]
+# obcrypt is all-secure (a-tier authenticated, u-tier unauthenticated
+# but still real cryptography); there is no unsecure subset, so no
+# `secure-schemes` aggregate is needed at this layer. Default enables
+# the five production schemes directly.
+default = ["aags", "apgs", "aasv", "apsv", "upbc"]
 
 # Individual schemes
 aags = ["aes-gcm-siv"]

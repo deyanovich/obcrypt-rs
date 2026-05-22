@@ -13,6 +13,33 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 
+## [0.2.0] - 2026-05-22
+
+### Changed
+
+- **Breaking: feature-flag cleanup.** The aggregate features
+  `secure-schemes`, `atier`, and `utier` have been removed. obcrypt
+  is all-secure at this layer (a-tier is authenticated, u-tier is
+  unauthenticated but still real cryptography), so there is no
+  unsecure subset for `secure-schemes` to distinguish; and the
+  `atier` / `utier` tier-group names are not part of oboron's
+  upstream feature vocabulary, so propagating them at the obcrypt
+  layer violated the subset-by-name layering rule. `default` now
+  enables the five individual scheme features directly
+  (`aags`, `apgs`, `aasv`, `apsv`, `upbc`).
+
+  **Migration.** Consumers that previously wrote
+  `features = ["secure-schemes"]`, `features = ["atier"]`, or
+  `features = ["utier"]` should switch to the explicit per-scheme
+  list. A `default-features = true` consumer (the common case)
+  needs no change — the default set is unchanged in composition,
+  only in how it's named.
+
+  No code, framed payload format, or `Scheme::marker` byte
+  assignments changed — payloads produced by 0.1.x decrypt
+  unchanged under 0.2.x with the matching scheme feature enabled.
+
+
 ## [0.1.1] - 2026-05-21
 
 ### Changed

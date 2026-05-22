@@ -16,7 +16,7 @@ codegen-units = 1
 inherits = "release"
 
 [workspace.package]
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.77.0"
 license = "MIT"
@@ -28,7 +28,7 @@ authors = ["Bojan Đuričković"]
 [workspace.dependencies]
 # Sibling crates (path deps for in-workspace builds; consumers outside
 # the workspace use the crates.io version).
-obcrypt = { path = "obcrypt", version = "0.1.1", default-features = false }
+obcrypt = { path = "obcrypt", version = "0.2.0", default-features = false }
 
 # Shared third-party deps
 rand = "0.8"
