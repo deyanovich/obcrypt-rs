@@ -7,6 +7,32 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 
+## [0.1.1] - 2026-05-22
+
+### Fixed
+
+- Source distribution now publishes successfully. The 0.1.0 sdist
+  upload was rejected by PyPI with
+  `License-File LICENSE does not exist in distribution file` —
+  maturin had auto-detected `obcrypt-py/LICENSE`, declared
+  `License-File: LICENSE` in PKG-INFO, but placed the file at
+  `obcrypt-py/LICENSE` inside the tarball rather than at the
+  sdist root. The 0.1.0 wheels uploaded successfully and are
+  installable; the sdist was missing. 0.1.1 removes the
+  per-package `obcrypt-py/LICENSE` (matching the sibling
+  `oboron-py` convention) — the workspace-root LICENSE remains
+  authoritative, and PKG-INFO no longer claims a file it can't
+  deliver. License continues to be declared via `License: MIT`
+  in metadata and the standard OSI classifier.
+
+### Notes
+
+- No API or behavior changes. If you installed 0.1.0
+  successfully, you don't need to upgrade for correctness; 0.1.1
+  is for users whose platforms required the sdist
+  (build-from-source fallback for archs without a published
+  wheel).
+
 ## [0.1.0] - 2026-05-22
 
 ### Added
