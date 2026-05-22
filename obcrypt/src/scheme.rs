@@ -185,21 +185,21 @@ impl std::str::FromStr for Scheme {
     /// [`Error::UnknownScheme`] if `s` doesn't match a feature-enabled
     /// scheme name.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s {
             #[cfg(feature = "aags")]
-            "aags" => Ok(Scheme::Aags),
+            _ if s.eq_ignore_ascii_case("aags") => Ok(Scheme::Aags),
             #[cfg(feature = "apgs")]
-            "apgs" => Ok(Scheme::Apgs),
+            _ if s.eq_ignore_ascii_case("apgs") => Ok(Scheme::Apgs),
             #[cfg(feature = "aasv")]
-            "aasv" => Ok(Scheme::Aasv),
+            _ if s.eq_ignore_ascii_case("aasv") => Ok(Scheme::Aasv),
             #[cfg(feature = "apsv")]
-            "apsv" => Ok(Scheme::Apsv),
+            _ if s.eq_ignore_ascii_case("apsv") => Ok(Scheme::Apsv),
             #[cfg(feature = "upbc")]
-            "upbc" => Ok(Scheme::Upbc),
+            _ if s.eq_ignore_ascii_case("upbc") => Ok(Scheme::Upbc),
             #[cfg(feature = "mock")]
-            "mock1" => Ok(Scheme::Mock1),
+            _ if s.eq_ignore_ascii_case("mock1") => Ok(Scheme::Mock1),
             #[cfg(feature = "mock")]
-            "mock2" => Ok(Scheme::Mock2),
+            _ if s.eq_ignore_ascii_case("mock2") => Ok(Scheme::Mock2),
             _ => Err(Error::UnknownScheme),
         }
     }

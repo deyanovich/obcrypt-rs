@@ -153,11 +153,12 @@ gated so binary size scales with what you actually use.
 
 ## Versioning
 
-Pre-1.0; the wire format and public API may change. See
-[`CHANGELOG.md`](CHANGELOG.md) for release notes. The framed payload
-format and the `Scheme::marker` byte assignments are bound to the
-oboron protocol spec and are intended to be stable across the 0.x
-series.
+Pre-1.0; the Rust API may evolve across 0.x minor releases. See
+[`CHANGELOG.md`](CHANGELOG.md) for release notes. The framed
+payload format and the `Scheme::marker` byte assignments are bound
+to the oboron protocol spec and are stable across the 0.x series
+— a payload produced by any `obcrypt 0.x` build decrypts under any
+other 0.x build with the matching scheme feature enabled.
 
 ## License
 

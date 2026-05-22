@@ -42,9 +42,7 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
     let nonce = Nonce::from([0u8; NONCE_SIZE]);
     cipher
@@ -63,9 +61,7 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
     let nonce = Nonce::from([0u8; NONCE_SIZE]);
 
@@ -89,9 +85,7 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if ciphertext.len() < MIN_PAYLOAD_LEN {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
     let nonce = Nonce::from([0u8; NONCE_SIZE]);
     cipher
@@ -110,9 +104,7 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
     if ciphertext.len() < MIN_PAYLOAD_LEN {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
     let nonce = Nonce::from([0u8; NONCE_SIZE]);
 

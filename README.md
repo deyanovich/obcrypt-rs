@@ -1,16 +1,13 @@
 # obcrypt-rs
 
 Rust workspace for **obcrypt** — the bytes-in / bytes-out
-cryptographic core of the [oboron](https://oboron.org/) protocol —
-plus its sibling distribution surfaces.
+cryptographic core of the [oboron](https://oboron.org/) protocol.
 
 ## Crates
 
 - [`./obcrypt`](./obcrypt) — the core library: `a`-tier (authenticated)
   and `u`-tier (unauthenticated) encryption schemes operating on raw
   byte slices. No text encoding, no UTF-8 validation, no z-tier.
-- [`./obcrypt-py`](./obcrypt-py) — Python bindings via PyO3 / maturin
-  (currently scaffold; not published).
 
 The `obcrypt` command-line interface lives separately in
 [`gitlab.com/oboron/oboron-tools-rs`](https://gitlab.com/oboron/oboron-tools-rs)

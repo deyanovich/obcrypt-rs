@@ -13,6 +13,33 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 
+## [0.1.1] - 2026-05-21
+
+### Changed
+
+- **Docs URLs** in `lib.rs`, `SECURITY.md`, and `FEATURES.md` now
+  point at the public canonical repository
+  (`gitlab.com/oboron/obcrypt-rs`) rather than the private mirror
+  path. Cross-references on docs.rs and crates.io now resolve
+  correctly for downstream readers.
+- **Internal: per-scheme key extraction** centralized via a
+  `Key::subkey<O, N>` crate-internal helper, replacing twelve
+  hand-rolled `try_into().unwrap()` call sites across the scheme
+  modules. Pure refactor — no public API change.
+- **`Scheme::from_str`** no longer allocates a `String` per call
+  (previously `s.to_lowercase()`; now ASCII-case-insensitive
+  match guards).
+- **`schemes::upbc::decrypt`** reduced from two heap allocations
+  to one.
+- **`schemes::apgs::encrypt`** nonce extraction simplified — the
+  triple-nested `Nonce::from(*<&[u8;N]>::try_from(...).unwrap())`
+  is replaced by a stack `[u8; NONCE_SIZE]` array, matching the
+  cleaner pattern already used by the `_into` variant.
+- **README versioning section** tightened — the wire-format
+  stability statement no longer reads as contradicting the
+  pre-1.0 API-evolution caveat in the same paragraph.
+
+
 ## [0.1.0] - 2026-05-20
 
 ### Added

@@ -40,20 +40,19 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
 
-    let mut buffer = Vec::with_capacity(NONCE_SIZE + plaintext.len() + TAG_SIZE);
-    buffer.resize(NONCE_SIZE, 0);
-    rand::thread_rng().fill_bytes(&mut buffer[..NONCE_SIZE]);
+    let mut nonce_bytes = [0u8; NONCE_SIZE];
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
 
     let cipher = Aes256GcmSiv::new(key_arr.into());
-    let nonce = Nonce::from(*<&[u8; NONCE_SIZE]>::try_from(&buffer[..NONCE_SIZE]).unwrap());
-
+    let nonce = Nonce::from(nonce_bytes);
     let ct_with_tag = cipher
         .encrypt(&nonce, plaintext)
         .map_err(|_| Error::EncryptionFailed)?;
+
+    let mut buffer = Vec::with_capacity(NONCE_SIZE + ct_with_tag.len());
+    buffer.extend_from_slice(&nonce_bytes);
     buffer.extend_from_slice(&ct_with_tag);
     Ok(buffer)
 }
@@ -69,9 +68,7 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
 
     let mut nonce_bytes = [0u8; NONCE_SIZE];
@@ -102,15 +99,13 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if ciphertext.len() < MIN_PAYLOAD_LEN {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
 
-    let nonce_bytes = &ciphertext[..NONCE_SIZE];
+    let nonce_arr: &[u8; NONCE_SIZE] = (&ciphertext[..NONCE_SIZE]).try_into().unwrap();
     let ct_with_tag = &ciphertext[NONCE_SIZE..];
 
     let cipher = Aes256GcmSiv::new(key_arr.into());
-    let nonce = Nonce::from(*<&[u8; NONCE_SIZE]>::try_from(nonce_bytes).unwrap());
+    let nonce = Nonce::from(*nonce_arr);
 
     cipher
         .decrypt(&nonce, ct_with_tag)
@@ -128,9 +123,7 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
     if ciphertext.len() < MIN_PAYLOAD_LEN {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     let cipher = Aes256GcmSiv::new(key_arr.into());
 
     let mut nonce_bytes = [0u8; NONCE_SIZE];

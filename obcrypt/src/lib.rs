@@ -12,7 +12,7 @@
 //!
 //! For the full string-in / string-out oboron protocol — with obtext
 //! encoding, format strings, and the `z`-tier obfuscation schemes — see
-//! the [`oboron`](https://gitlab.com/uvar/crypt/oboron/oboron-rs) crate,
+//! the [`oboron`](https://gitlab.com/oboron/oboron-rs) crate,
 //! which depends on this crate.
 //!
 //! # Quick start
@@ -129,7 +129,7 @@
 //! - **Key zeroization**: [`Key`] is `ZeroizeOnDrop`; the 64 key bytes
 //!   are zeroed when the value is dropped.
 //!
-//! See [`SECURITY.md`](https://gitlab.com/uvar/crypt/oboron/obcrypt-rs/-/blob/master/obcrypt/SECURITY.md)
+//! See [`SECURITY.md`](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt/SECURITY.md)
 //! for the full threat model, algorithm justification, and vulnerability
 //! reporting policy.
 //!
@@ -145,7 +145,7 @@
 //!
 //! Schemes are individually gated so binary size scales with the schemes
 //! you actually use. See
-//! [`FEATURES.md`](https://gitlab.com/uvar/crypt/oboron/obcrypt-rs/-/blob/master/obcrypt/FEATURES.md)
+//! [`FEATURES.md`](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt/FEATURES.md)
 //! for the full matrix.
 
 mod constants;

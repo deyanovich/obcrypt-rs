@@ -54,9 +54,7 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
 
     let data_len = plaintext.len();
     let padding_size = (AES_BLOCK_SIZE - (data_len % AES_BLOCK_SIZE)) % AES_BLOCK_SIZE;
@@ -86,9 +84,7 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     if plaintext.is_empty() {
         return Err(Error::EmptyPlaintext);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
 
     let data_len = plaintext.len();
     let padding_size = (AES_BLOCK_SIZE - (data_len % AES_BLOCK_SIZE)) % AES_BLOCK_SIZE;
@@ -135,27 +131,26 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     if ciphertext.len() < 2 * IV_SIZE {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
-
-    let mut buf = ciphertext.to_vec();
-    let (iv, ct) = buf.split_at_mut(IV_SIZE);
-    if ct.len() % AES_BLOCK_SIZE != 0 {
+    if (ciphertext.len() - IV_SIZE) % AES_BLOCK_SIZE != 0 {
         return Err(Error::InvalidBlockLength);
     }
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
 
-    let cipher = Aes256CbcDec::new(key_arr.into(), (&*iv).into());
+    let iv = &ciphertext[..IV_SIZE];
+    let mut buf = ciphertext[IV_SIZE..].to_vec();
+
+    let cipher = Aes256CbcDec::new(key_arr.into(), iv.into());
     cipher
-        .decrypt_padded_mut::<cipher::block_padding::NoPadding>(ct)
+        .decrypt_padded_mut::<cipher::block_padding::NoPadding>(&mut buf)
         .map_err(|_| Error::DecryptionFailed)?;
 
     // Strip custom padding (CBC_PADDING_BYTE).
-    let mut end = ct.len();
-    while end > 0 && ct[end - 1] == CBC_PADDING_BYTE {
+    let mut end = buf.len();
+    while end > 0 && buf[end - 1] == CBC_PADDING_BYTE {
         end -= 1;
     }
-    Ok(ct[..end].to_vec())
+    buf.truncate(end);
+    Ok(buf)
 }
 
 /// Decrypt `ciphertext` and append plaintext to `out` (with trailing
@@ -169,9 +164,7 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
     if ciphertext.len() < 2 * IV_SIZE {
         return Err(Error::PayloadTooShort);
     }
-    let key_arr: &[u8; KEY_LEN] = (&key.as_bytes()[KEY_OFFSET..KEY_OFFSET + KEY_LEN])
-        .try_into()
-        .unwrap();
+    let key_arr = key.subkey::<KEY_OFFSET, KEY_LEN>();
     if (ciphertext.len() - IV_SIZE) % AES_BLOCK_SIZE != 0 {
         return Err(Error::InvalidBlockLength);
     }

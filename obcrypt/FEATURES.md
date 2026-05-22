@@ -77,7 +77,7 @@ function and `mock2` reverses bytes; neither performs encryption.
 - `Scheme::from_marker` and `Scheme::from_str` only recognize
   feature-enabled schemes. A payload encrypted with a scheme that
   isn't compiled into the consumer's binary will return
-  [`Error::UnknownScheme`](https://gitlab.com/uvar/crypt/oboron/obcrypt-rs/-/blob/master/obcrypt/src/error.rs)
+  [`Error::UnknownScheme`](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt/src/error.rs)
   on `decrypt`.
 - The framed payload format is identical across feature combinations
   — a payload produced by a `secure-schemes` build can be decrypted

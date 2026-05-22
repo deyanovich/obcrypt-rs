@@ -126,6 +126,17 @@ impl Key {
         &self.bytes
     }
 
+    /// Borrow an `N`-byte sub-array of the master key starting at
+    /// offset `O`. Used by per-scheme primitives to get a fixed-size
+    /// key slice for their cipher (e.g. AES-256 needs `&[u8; 32]`).
+    ///
+    /// Bounds (`O + N <= 64`) are validated at first call via
+    /// `try_into`; under inlining + LTO the bounds check folds out.
+    #[inline(always)]
+    pub(crate) fn subkey<const O: usize, const N: usize>(&self) -> &[u8; N] {
+        (&self.bytes[O..O + N]).try_into().unwrap()
+    }
+
     /// Construct a key from a 128-character hex string (lowercase or
     /// uppercase, no `0x` prefix).
     ///

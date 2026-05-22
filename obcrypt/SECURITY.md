@@ -128,7 +128,7 @@ at **dev@deyanovich.org** with the subject line beginning
 and (if possible) a proposed fix or mitigation.
 
 For non-security bugs, file an issue on the
-[GitLab repository](https://gitlab.com/uvar/crypt/oboron/obcrypt-rs/-/issues).
+[GitLab repository](https://gitlab.com/oboron/obcrypt-rs/-/issues).
 
 Coordinated disclosure: I'll acknowledge receipt within 7 days and
 work with you on a disclosure timeline appropriate to the severity.
