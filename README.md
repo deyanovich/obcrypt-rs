@@ -6,11 +6,15 @@ plus its sibling distribution surfaces.
 
 ## Crates
 
-- [`./obcrypt`](./obcrypt) — the core library: `a`-tier (authenticated)
-  and `u`-tier (unauthenticated) encryption schemes operating on raw
-  byte slices. No text encoding, no UTF-8 validation, no z-tier.
+- [`./obcrypt`](./obcrypt) — the core library: oboron's authenticated
+  core encryption schemes operating on raw byte slices. No text
+  encoding, no UTF-8 validation.
 - [`./obcrypt-py`](./obcrypt-py) — Python bindings via PyO3 / maturin
-  (currently scaffold; not published).
+  (published to PyPI as `obcrypt`).
+- [`./obcrypt-wasm`](./obcrypt-wasm) — WebAssembly / JS bindings via
+  wasm-bindgen / wasm-pack (ships to npm as `obcrypt-wasm`).
+- [`./obcrypt-ffi`](./obcrypt-ffi) — C ABI (a `(ptr, len)` byte-buffer
+  surface) for languages without a first-class Rust bridge.
 
 The `obcrypt` command-line interface lives separately in
 [`gitlab.com/oboron/oboron-tools-rs`](https://gitlab.com/oboron/oboron-tools-rs)
@@ -20,17 +24,17 @@ crate.
 ## Layering
 
 `obcrypt` is the bytes-in / bytes-out layer of the oboron protocol.
-For the full string-in / string-out protocol — with obtext encoding,
-format strings, and the `z`-tier obfuscation schemes — see the
+For the full string-in / string-out protocol — with obtext encoding
+and format strings — see the
 [`oboron`](https://gitlab.com/oboron/oboron-rs) workspace, which
-depends on this crate.
+depends on this crate. The unauthenticated and obfuscation schemes
+live in the separate obu layer.
 
 | | `obcrypt` (this) | `oboron` |
 |---|---|---|
 | Input / output | `&[u8]` / `Vec<u8>` | `&str` / `String` |
 | Encoding | none | base64 / base32 / hex |
 | UTF-8 validation | no | yes |
-| Schemes | `a`-tier, `u`-tier | `a`-tier, `u`-tier, `z`-tier |
 | Intended use | binary contexts, embedded, low-level integration | text contexts, identifiers, URLs |
 
 ## Build
@@ -42,4 +46,19 @@ cargo test --workspace
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Licensed under either of
+
+- Apache License, Version 2.0
+  ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or
+  <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution
+intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as
+above, without any additional terms or conditions.

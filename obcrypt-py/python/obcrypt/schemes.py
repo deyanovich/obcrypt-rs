@@ -6,10 +6,10 @@ autocomplete::
     import obcrypt
     from obcrypt import schemes
 
-    payload = obcrypt.encrypt(b"x", schemes.AASV, key)
+    payload = obcrypt.encrypt(b"x", schemes.DSIV, key)
 
-is equivalent to passing the literal ``"aasv"``, but a typo on the
-constant (``schemes.AAVS``) fails at import / attribute access rather
+is equivalent to passing the literal ``"dsiv"``, but a typo on the
+constant (``schemes.DSVI``) fails at import / attribute access rather
 than at the first encrypt call.
 
 Schemes correspond one-to-one with ``obcrypt::Scheme`` variants in the
@@ -17,10 +17,9 @@ Rust crate; see the obcrypt crate docs for the algorithm and use-case
 guidance for each.
 """
 
-AAGS: str = "aags"
-APGS: str = "apgs"
-AASV: str = "aasv"
-APSV: str = "apsv"
-UPBC: str = "upbc"
+DGCMSIV: str = "dgcmsiv"
+PGCMSIV: str = "pgcmsiv"
+DSIV: str = "dsiv"
+PSIV: str = "psiv"
 
-__all__ = ["AAGS", "APGS", "AASV", "APSV", "UPBC"]
+__all__ = ["DGCMSIV", "PGCMSIV", "DSIV", "PSIV"]

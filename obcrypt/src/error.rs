@@ -19,15 +19,10 @@ pub enum Error {
     #[error("invalid hex key (expected 128 hex characters)")]
     InvalidHex,
 
-    /// `Scheme::from_marker` / `Scheme::from_str` / [`crate::decrypt`]
-    /// could not match the input to any feature-enabled scheme.
+    /// [`Scheme::from_str`](crate::Scheme) could not match the input to
+    /// any feature-enabled scheme.
     #[error("unknown scheme")]
     UnknownScheme,
-
-    /// [`crate::decrypt_as`] / [`crate::decrypt_as_into`] found a
-    /// trailing marker that didn't match the expected scheme.
-    #[error("scheme marker mismatch")]
-    SchemeMarkerMismatch,
 
     /// The underlying AEAD primitive reported a generic encryption
     /// failure (in practice: out-of-memory or RNG failure).
@@ -38,9 +33,8 @@ pub enum Error {
     #[error("encryption failed: empty plaintext")]
     EmptyPlaintext,
 
-    /// AEAD tag check failed (a-tier) or padding didn't validate
-    /// (`upbc`). Indicates wrong key, tampered ciphertext, or scheme
-    /// mismatch slipping past the marker dispatch.
+    /// AEAD tag check failed. Indicates a wrong key, a tampered
+    /// ciphertext, or the wrong scheme supplied for decryption.
     #[error("decryption failed")]
     DecryptionFailed,
 
@@ -48,15 +42,9 @@ pub enum Error {
     #[error("decryption failed: empty payload")]
     EmptyPayload,
 
-    /// Payload doesn't carry enough bytes for the framed format
-    /// (marker + at least one ciphertext byte) or the scheme's
-    /// minimum payload (e.g. SIV's tag size).
+    /// The scheme output is shorter than the scheme's minimum layout
+    /// length (e.g. a SIV tag, or a probabilistic scheme's nonce plus
+    /// tag) — so it cannot be a valid output.
     #[error("decryption failed: payload too short")]
     PayloadTooShort,
-
-    /// `upbc` decrypt: ciphertext length isn't a multiple of the AES
-    /// block size (16). Indicates a corrupted payload — CBC requires
-    /// block-aligned ciphertext.
-    #[error("decryption failed: invalid block length")]
-    InvalidBlockLength,
 }

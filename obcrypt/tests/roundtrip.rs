@@ -1,6 +1,6 @@
 //! Roundtrip tests for every scheme: encrypt → decrypt → assert plaintext.
 
-use obcrypt::{decrypt, decrypt_as, encrypt, encrypt_into, Error, Key, Scheme};
+use obcrypt::{decrypt, decrypt_into, encrypt, encrypt_into, Error, Key, Scheme};
 
 const SAMPLES: &[&[u8]] = &[
     b"x",
@@ -22,43 +22,33 @@ fn assert_roundtrip(scheme: Scheme) {
     let key = fixed_key();
     for pt in SAMPLES {
         let payload = encrypt(pt, scheme, &key).expect("encrypt");
-        let recovered = decrypt(&payload, &key).expect("decrypt");
+        let recovered = decrypt(&payload, scheme, &key).expect("decrypt");
         assert_eq!(&recovered[..], *pt, "roundtrip failed for {scheme:?}");
-
-        // Also test the explicit-scheme decrypt
-        let recovered_as = decrypt_as(&payload, scheme, &key).expect("decrypt_as");
-        assert_eq!(&recovered_as[..], *pt, "decrypt_as failed for {scheme:?}");
     }
 }
 
-#[cfg(feature = "aags")]
+#[cfg(feature = "dgcmsiv")]
 #[test]
-fn aags_roundtrip() {
-    assert_roundtrip(Scheme::Aags);
+fn dgcmsiv_roundtrip() {
+    assert_roundtrip(Scheme::Dgcmsiv);
 }
 
-#[cfg(feature = "apgs")]
+#[cfg(feature = "pgcmsiv")]
 #[test]
-fn apgs_roundtrip() {
-    assert_roundtrip(Scheme::Apgs);
+fn pgcmsiv_roundtrip() {
+    assert_roundtrip(Scheme::Pgcmsiv);
 }
 
-#[cfg(feature = "aasv")]
+#[cfg(feature = "dsiv")]
 #[test]
-fn aasv_roundtrip() {
-    assert_roundtrip(Scheme::Aasv);
+fn dsiv_roundtrip() {
+    assert_roundtrip(Scheme::Dsiv);
 }
 
-#[cfg(feature = "apsv")]
+#[cfg(feature = "psiv")]
 #[test]
-fn apsv_roundtrip() {
-    assert_roundtrip(Scheme::Apsv);
-}
-
-#[cfg(feature = "upbc")]
-#[test]
-fn upbc_roundtrip() {
-    assert_roundtrip(Scheme::Upbc);
+fn psiv_roundtrip() {
+    assert_roundtrip(Scheme::Psiv);
 }
 
 #[cfg(feature = "mock")]
@@ -73,99 +63,121 @@ fn mock2_roundtrip() {
     assert_roundtrip(Scheme::Mock2);
 }
 
-#[cfg(feature = "aasv")]
+#[cfg(feature = "dsiv")]
 #[test]
 fn encrypt_into_appends_to_existing_buffer() {
     let key = fixed_key();
-    let mut buf = Vec::from(&b"prefix:"[..]);
-    encrypt_into(b"payload", Scheme::Aasv, &key, &mut buf).unwrap();
-    assert!(buf.starts_with(b"prefix:"));
-    assert!(buf.len() > b"prefix:".len() + 2);
+    let prefix = b"prefix:";
+    let mut buf = Vec::from(&prefix[..]);
+    encrypt_into(b"payload", Scheme::Dsiv, &key, &mut buf).unwrap();
+    assert!(buf.starts_with(prefix));
+    // The appended bytes are a standalone dsiv output that decrypts back.
+    let recovered = decrypt(&buf[prefix.len()..], Scheme::Dsiv, &key).unwrap();
+    assert_eq!(recovered, b"payload");
 }
 
-#[cfg(feature = "aasv")]
+#[cfg(feature = "psiv")]
+#[test]
+fn decrypt_into_appends_plaintext() {
+    let key = fixed_key();
+    let payload = encrypt(b"payload", Scheme::Psiv, &key).unwrap();
+    let mut buf = Vec::from(&b"out:"[..]);
+    decrypt_into(&payload, Scheme::Psiv, &key, &mut buf).unwrap();
+    assert_eq!(buf, b"out:payload");
+}
+
+#[cfg(feature = "dsiv")]
 #[test]
 fn deterministic_schemes_are_stable() {
     let key = fixed_key();
-    let a = encrypt(b"identical input", Scheme::Aasv, &key).unwrap();
-    let b = encrypt(b"identical input", Scheme::Aasv, &key).unwrap();
-    assert_eq!(a, b, "aasv should be deterministic");
+    let a = encrypt(b"identical input", Scheme::Dsiv, &key).unwrap();
+    let b = encrypt(b"identical input", Scheme::Dsiv, &key).unwrap();
+    assert_eq!(a, b, "dsiv should be deterministic");
 }
 
-#[cfg(feature = "apsv")]
+#[cfg(feature = "psiv")]
 #[test]
 fn probabilistic_schemes_vary() {
     let key = fixed_key();
-    let a = encrypt(b"identical input", Scheme::Apsv, &key).unwrap();
-    let b = encrypt(b"identical input", Scheme::Apsv, &key).unwrap();
-    assert_ne!(a, b, "apsv should be probabilistic");
+    let a = encrypt(b"identical input", Scheme::Psiv, &key).unwrap();
+    let b = encrypt(b"identical input", Scheme::Psiv, &key).unwrap();
+    assert_ne!(a, b, "psiv should be probabilistic");
 }
 
-#[cfg(feature = "aags")]
+#[cfg(feature = "dgcmsiv")]
 #[test]
-fn wrong_key_fails_a_tier() {
+fn wrong_key_fails() {
     let key1 = fixed_key();
     let key2 = {
         let mut bytes = *key1.as_bytes();
-        // Flip a byte in aags's actual key slice (master_key[32..64]).
+        // Any change to the master alters the HKDF-derived dgcmsiv key.
         bytes[40] ^= 0xff;
         Key::from_bytes(bytes)
     };
-    let payload = encrypt(b"secret", Scheme::Aags, &key1).unwrap();
-    match decrypt(&payload, &key2) {
+    let payload = encrypt(b"secret", Scheme::Dgcmsiv, &key1).unwrap();
+    match decrypt(&payload, Scheme::Dgcmsiv, &key2) {
         Err(Error::DecryptionFailed) => {}
         other => panic!("expected DecryptionFailed, got {other:?}"),
     }
 }
 
-#[cfg(feature = "aags")]
+#[cfg(feature = "dgcmsiv")]
 #[test]
-fn tampered_payload_fails_a_tier() {
+fn tampered_payload_fails() {
     let key = fixed_key();
-    let mut payload = encrypt(b"secret", Scheme::Aags, &key).unwrap();
-    // Flip a bit in the ciphertext (not the marker bytes).
+    let mut payload = encrypt(b"secret", Scheme::Dgcmsiv, &key).unwrap();
+    // Flip a bit in the ciphertext.
     payload[4] ^= 0x01;
-    assert!(decrypt(&payload, &key).is_err());
+    assert!(decrypt(&payload, Scheme::Dgcmsiv, &key).is_err());
 }
 
-#[cfg(all(feature = "aasv", feature = "apsv"))]
+#[cfg(all(feature = "dsiv", feature = "dgcmsiv"))]
 #[test]
-fn decrypt_as_rejects_mismatched_marker() {
+fn wrong_scheme_fails_authentication() {
+    // No marker selects the scheme: decrypting under the wrong scheme
+    // must fail the authentication check, never return wrong plaintext.
+    // A long plaintext keeps both outputs above either scheme's minimum
+    // length, so the failure is a tag mismatch, not a length rejection.
     let key = fixed_key();
-    let payload = encrypt(b"hello", Scheme::Aasv, &key).unwrap();
-    let err = decrypt_as(&payload, Scheme::Apsv, &key).unwrap_err();
-    assert!(matches!(err, Error::SchemeMarkerMismatch));
+    let pt = b"a sufficiently long plaintext to clear both minimum lengths";
+    let payload = encrypt(pt, Scheme::Dsiv, &key).unwrap();
+    match decrypt(&payload, Scheme::Dgcmsiv, &key) {
+        Err(Error::DecryptionFailed) => {}
+        other => panic!("expected DecryptionFailed, got {other:?}"),
+    }
 }
 
+#[cfg(feature = "dsiv")]
 #[test]
 fn payload_too_short() {
     let key = fixed_key();
     assert!(matches!(
-        decrypt(&[0u8; 1], &key),
+        decrypt(&[0u8; 1], Scheme::Dsiv, &key),
         Err(Error::PayloadTooShort)
     ));
 }
 
-#[test]
-fn unknown_marker_fails() {
-    let key = fixed_key();
-    // 5 bytes: first=0x00, rest=0x00 -> marker XOR first = [0xff, 0xff] (unknown)
-    let mut payload = [0u8; 5];
-    payload[3] = 0xff;
-    payload[4] = 0xff;
-    match decrypt(&payload, &key) {
-        Err(Error::UnknownScheme) => {}
-        other => panic!("expected UnknownScheme, got {other:?}"),
-    }
-}
-
-#[cfg(feature = "aasv")]
+#[cfg(feature = "dsiv")]
 #[test]
 fn empty_plaintext_rejected() {
     let key = fixed_key();
     assert!(matches!(
-        encrypt(b"", Scheme::Aasv, &key),
+        encrypt(b"", Scheme::Dsiv, &key),
         Err(Error::EmptyPlaintext)
+    ));
+}
+
+#[test]
+fn scheme_parse_roundtrip() {
+    for name in ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"] {
+        // Only feature-enabled schemes parse; under --all-features all do.
+        if let Ok(s) = name.parse::<Scheme>() {
+            assert_eq!(s.as_str(), name);
+        }
+    }
+    assert!(matches!(
+        "nope".parse::<Scheme>(),
+        Err(Error::UnknownScheme)
     ));
 }
 
@@ -188,12 +200,6 @@ fn key_from_hex_rejects_invalid() {
 
 #[test]
 fn key_from_hex_accepts_uppercase() {
-    let lo = "0".repeat(128);
-    let hi = "0".repeat(128); // (no letters above 9 here, just shape check)
-    assert_eq!(
-        Key::from_hex(&lo).unwrap().as_bytes(),
-        Key::from_hex(&hi).unwrap().as_bytes()
-    );
     let mixed = "AbCdEf".to_string() + &"0".repeat(122);
     let lower = "abcdef".to_string() + &"0".repeat(122);
     assert_eq!(

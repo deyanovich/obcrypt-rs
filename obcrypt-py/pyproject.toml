@@ -6,10 +6,10 @@ build-backend = "maturin"
 name = "obcrypt"
 dynamic = ["version"]
 requires-python = ">=3.8"
-description = "Python bindings for obcrypt — bytes-in/bytes-out symmetric encryption (oboron protocol, a-tier + u-tier)."
+description = "Python bindings for obcrypt — bytes-in/bytes-out authenticated encryption (oboron protocol core schemes)."
 readme = "README.md"
-license = "MIT"
-license-files = ["LICENSE"]
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 authors = [
     { name = "Bojan Đuričković" }
 ]
@@ -17,7 +17,6 @@ keywords = ["python", "encryption", "cryptography", "oboron"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

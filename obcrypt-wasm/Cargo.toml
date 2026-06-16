@@ -1,0 +1,54 @@
+[package]
+name = "obcrypt-wasm"
+# Decoupled from the workspace version: the npm package follows its
+# own release cadence, independent of the obcrypt Rust crate on
+# crates.io (mirrors the obcrypt-py / PyPI split). 1.0.0 aligns the
+# first stable npm release with the obcrypt 1.0 core.
+version = "1.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+authors.workspace = true
+description = "WebAssembly/JS bindings for obcrypt — bytes-in/bytes-out authenticated encryption (oboron protocol core schemes)."
+keywords = ["wasm", "encryption", "cryptography", "oboron"]
+categories = ["cryptography", "wasm"]
+readme = "README.md"
+# Not a crates.io publication target — this crate ships to npm via
+# wasm-pack (see README), not to crates.io.
+publish = false
+
+[lib]
+# `cdylib` is what wasm-bindgen / wasm-pack consume; `rlib` keeps the
+# crate usable as a normal Rust library (e.g. the wasm-bindgen-test
+# suite in `tests/`).
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# obcrypt's core schemes are all authenticated, so there is no unsecure
+# subset and no `secure-schemes` aggregate is needed at this layer.
+# Default enables the four production schemes directly.
+default = ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"]
+
+# Individual schemes — each forwards to obcrypt AND declares the local
+# feature flag that gates the binding code in `src/lib.rs`. Without the
+# local flag the binding for that scheme is silently omitted from the
+# generated module.
+dgcmsiv = ["obcrypt/dgcmsiv"]
+pgcmsiv = ["obcrypt/pgcmsiv"]
+dsiv = ["obcrypt/dsiv"]
+psiv = ["obcrypt/psiv"]
+mock = ["obcrypt/mock"]
+
+[dependencies]
+obcrypt = { workspace = true, default-features = false }
+wasm-bindgen.workspace = true
+
+# Randomness on wasm32 flows through obcrypt's getrandom "js" backend
+# (declared in obcrypt's own manifest under the wasm32 target), so no
+# getrandom dependency is needed here.
+
+[dev-dependencies]
+wasm-bindgen-test.workspace = true

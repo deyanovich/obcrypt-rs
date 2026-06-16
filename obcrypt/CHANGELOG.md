@@ -13,6 +13,45 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 
+## [1.0.0] - 2026-06-15
+
+First stable release, tracking the oboron 1.0 protocol. This is a
+clean break from the 0.x line — schemes are renamed, the framing is
+gone, and the unauthenticated scheme has moved out. Outputs are **not**
+compatible with 0.x.
+
+### Changed
+
+- **Breaking: scheme identifiers renamed** to a `<property><algorithm>`
+  shape. The leading letter is the property — `d` (deterministic) or
+  `p` (probabilistic) — and the rest names the AEAD (`siv` = AES-SIV,
+  `gcmsiv` = AES-GCM-SIV). The 0.x tier-prefixed names map as:
+  `aasv` → `dsiv`, `apsv` → `psiv`, `aags` → `dgcmsiv`,
+  `apgs` → `pgcmsiv`. Feature flags and `obcrypt::schemes::*` modules
+  are renamed to match.
+- **Breaking: no scheme marker.** The 0.x framed payload (scheme
+  output + an XOR'd 2-byte marker) is gone; `encrypt` now returns the
+  scheme's AEAD output directly. `decrypt` takes the `Scheme`
+  explicitly — there is no auto-detection. `decrypt_as` /
+  `decrypt_as_into`, `Scheme::marker`, and `Scheme::from_marker` are
+  removed; decrypting under the wrong scheme fails authentication.
+- **Breaking: GCM-SIV key derivation via HKDF.** `dgcmsiv` / `pgcmsiv`
+  derive their 32-byte AES-256-GCM-SIV key from the master with
+  `HKDF-Expand` (HMAC-SHA-256, info `gcmsiv`, shared by both GCM-SIV
+  schemes), replacing the fixed master slice used in 0.x. SIV schemes
+  still use the full 64-byte master directly.
+- **Dual-licensed** under `MIT OR Apache-2.0` (the 0.x line was MIT
+  only); both license texts ship in the crate.
+
+### Removed
+
+- **`upbc` (AES-CBC) removed from the core.** obcrypt is now
+  authenticated-only; the unauthenticated and obfuscation schemes live
+  in the separate obu layer. The `Error::SchemeMarkerMismatch` and
+  `Error::InvalidBlockLength` variants and the internal
+  `Key::subkey` helper are removed.
+
+
 ## [0.2.0] - 2026-05-22
 
 ### Changed

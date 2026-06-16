@@ -1,6 +1,5 @@
-//! `aasv` — deterministic AES-SIV.
+//! `dsiv` — deterministic AES-SIV.
 //!
-//! - **Tier**: a (authenticated)
 //! - **Properties**: deterministic — same plaintext + same key always
 //!   produces the same ciphertext.
 //! - **Algorithm**: AES-SIV ([RFC 5297]) using `Aes256Siv` from the
@@ -11,12 +10,12 @@
 //! - **Payload**: `ciphertext_with_tag` (no nonce prefix). Tag is
 //!   16 bytes, so a 1-byte plaintext yields a 17-byte ciphertext.
 //!
-//! aasv is the **default recommended scheme** for new
+//! dsiv is the **default recommended scheme** for new
 //! deterministic-encryption use cases — broad nonce-misuse resistance
 //! and a clean security story. The deterministic property is
 //! deliberate: it lets you use ciphertext as a stable identifier or
 //! lookup key. If you don't want plaintext equality to be observable,
-//! use [`apsv`](super::apsv) instead.
+//! use [`psiv`](super::psiv) instead.
 //!
 //! [RFC 5297]: https://www.rfc-editor.org/rfc/rfc5297
 //! [`aes-siv`]: https://docs.rs/aes-siv/

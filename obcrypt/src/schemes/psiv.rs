@@ -1,6 +1,5 @@
-//! `apsv` — probabilistic AES-SIV.
+//! `psiv` — probabilistic AES-SIV.
 //!
-//! - **Tier**: a (authenticated)
 //! - **Properties**: probabilistic — fresh 16-byte nonce per call.
 //! - **Algorithm**: AES-SIV ([RFC 5297]) using `Aes256Siv`, with the
 //!   nonce passed as the SIV "associated data".
@@ -9,8 +8,8 @@
 //! - **Payload**: `nonce(16) || ciphertext_with_tag`. Tag is 16 bytes,
 //!   so a 1-byte plaintext yields a 33-byte ciphertext.
 //! - **Nonce-misuse resistance**: even if two calls accidentally use
-//!   the same nonce (e.g. catastrophic RNG failure), `apsv` degrades
-//!   only to the equality-leak property of [`aasv`](super::aasv) — no
+//!   the same nonce (e.g. catastrophic RNG failure), `psiv` degrades
+//!   only to the equality-leak property of [`dsiv`](super::dsiv) — no
 //!   key recovery, no plaintext recovery.
 //!
 //! Use this when you want authenticated encryption with **no

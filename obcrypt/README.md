@@ -7,16 +7,16 @@
 The **bytes-in / bytes-out** cryptographic core of the
 [oboron](https://oboron.org/) protocol.
 
-`obcrypt` implements oboron's `a`-tier (authenticated) and `u`-tier
-(unauthenticated) encryption schemes operating on raw byte slices. It
-does **not** perform any text encoding (no base64, no base32, no hex)
-and does **not** validate UTF-8 — plaintext bytes pass through
-unchanged.
+`obcrypt` implements oboron's authenticated core encryption schemes
+operating on raw byte slices. It does **not** perform any text
+encoding (no base64, no base32, no hex) and does **not** validate
+UTF-8 — plaintext bytes pass through unchanged.
 
 For the full string-in / string-out oboron protocol (with obtext
-encoding, format strings, and the `z`-tier obfuscation schemes), use
-the [`oboron`](https://gitlab.com/oboron/oboron-rs) crate, which
-depends on this crate.
+encoding and format strings), use the
+[`oboron`](https://gitlab.com/oboron/oboron-rs) crate, which depends
+on this one. The unauthenticated and obfuscation schemes live in the
+separate obu layer, not here.
 
 **Keys** do have a canonical text form: **hex** (128 lowercase
 characters). `Key::from_hex` / `Key::to_hex` handle that. obcrypt
@@ -32,7 +32,6 @@ to justify the visual noise.
 | Input / output | `&[u8]` / `Vec<u8>` | `&str` / `String` |
 | Encoding | none | base64 / base32 / hex |
 | UTF-8 validation | no | yes |
-| Schemes | `a`-tier, `u`-tier | `a`-tier, `u`-tier, `z`-tier |
 | Intended use | binary contexts, embedded, low-level integration | text contexts, identifiers, URLs |
 
 ## Quick start
@@ -41,37 +40,42 @@ to justify the visual noise.
 use obcrypt::{encrypt, decrypt, Key, Scheme};
 
 let key = Key::random();
-let payload = encrypt(b"secret data", Scheme::Aasv, &key)?;
-let plaintext = decrypt(&payload, &key)?;
+let output = encrypt(b"secret data", Scheme::Dsiv, &key)?;
+let plaintext = decrypt(&output, Scheme::Dsiv, &key)?;
 assert_eq!(plaintext, b"secret data");
 # Ok::<(), obcrypt::Error>(())
 ```
 
+The output carries no scheme marker — the same `Scheme` used to
+encrypt must be supplied to `decrypt`. Supplying the wrong scheme
+fails the authentication check rather than returning garbage.
+
 ## Schemes
 
-Each scheme is a 4-letter identifier of the form `<tier><props><alg>`.
-Pick by what you need first; the table below ranks the schemes within
-each row by recommended preference.
+A scheme identifier is `<property><algorithm>`: the first letter is
+`d` (deterministic) or `p` (probabilistic); the rest names the AEAD
+(`siv` = AES-SIV, `gcmsiv` = AES-GCM-SIV). All four are authenticated.
 
-| Tier | Properties | Algorithm | Schemes (preferred → fallback) |
-|---|---|---|---|
-| `a` (authenticated) | deterministic | SIV / GCM-SIV | **`aasv`** → `aags` |
-| `a` (authenticated) | probabilistic | SIV / GCM-SIV | **`apsv`** → `apgs` |
-| `u` (unauthenticated, secure) | probabilistic | CBC | `upbc` |
+| Properties | Algorithm | Scheme |
+|---|---|---|
+| deterministic | AES-SIV | **`dsiv`** |
+| probabilistic | AES-SIV | **`psiv`** |
+| deterministic | AES-GCM-SIV | `dgcmsiv` |
+| probabilistic | AES-GCM-SIV | `pgcmsiv` |
 
 Scheme decision matrix:
 
-- **Need authentication?** Use an a-tier scheme (`aasv` /
-  `apsv` / `aags` / `apgs`). u-tier `upbc` provides confidentiality
-  only — pair with an outer authenticator if you use it.
-- **Need same-plaintext-same-ciphertext?** (e.g. for stable IDs or
-  encrypted lookups.) Use a deterministic variant (`aasv`, `aags`).
-- **Need different-ciphertext-each-call?** Use a probabilistic
-  variant (`apsv`, `apgs`, `upbc`).
-- **Want broad nonce-misuse resistance?** Prefer SIV variants (`aasv`,
-  `apsv`) — they degrade gracefully under accidental nonce reuse.
+- **Need same-plaintext-same-output?** (e.g. for stable IDs or
+  encrypted lookups.) Use a deterministic variant (`dsiv`,
+  `dgcmsiv`). Otherwise use a probabilistic variant (`psiv`,
+  `pgcmsiv`), which draws a fresh nonce per call.
+- **Want broad nonce-misuse resistance with a clean security
+  story?** Prefer the SIV variants (`dsiv`, `psiv`) — `dsiv` is the
+  most general default.
 - **Want smallest footprint / fastest on AES-NI hardware?** Prefer
-  GCM-SIV variants (`aags`, `apgs`).
+  the GCM-SIV variants (`dgcmsiv`, `pgcmsiv`). SIV typically wins on
+  short inputs; GCM-SIV scales better and pulls ahead on
+  medium-to-large inputs (crossover around 256 bytes in practice).
 
 Plus testing-only schemes behind the `mock` feature flag — `mock1`
 (identity) and `mock2` (reverse). They perform **no encryption**
@@ -81,24 +85,18 @@ and as inert fallbacks. Never enable `mock` in a production build.
 See [`SECURITY.md`](SECURITY.md) for the full threat model and
 algorithm justification.
 
-## Framed payload format
+## Output format
 
-For every scheme, the framed payload returned by `encrypt` is:
+The output of `encrypt` is exactly the scheme's AEAD output — there
+is no scheme marker:
 
-```text
-[ scheme ciphertext bytes ][ marker[0] ^ ct[0] ][ marker[1] ^ ct[0] ]
-```
+- deterministic: `siv-tag || ciphertext` (`dsiv`) or
+  `ciphertext || tag` (`dgcmsiv`).
+- probabilistic: a fresh nonce is prepended.
 
-- *scheme ciphertext bytes* — whatever the per-scheme primitive
-  produces (for AEAD schemes that's `nonce || ct || tag` for the
-  probabilistic ones, or `ct || tag` for the deterministic ones).
-- *marker* — the 2-byte `Scheme` identifier.
-- The XOR with `ct[0]` mixes entropy into the marker so it doesn't
-  appear as a constant trailer on short payloads.
-
-`decrypt` reverses this, dispatching on the recovered marker;
-`decrypt_as` additionally checks that the marker matches the
-caller-supplied scheme.
+The scheme is part of the caller's context on both sides; obcrypt
+follows oboron's no-marker model, where decrypting under the wrong
+scheme fails the authentication check.
 
 ## API
 
@@ -113,22 +111,27 @@ Two parallel forms are provided for every operation:
 pub fn encrypt(plaintext: &[u8], scheme: Scheme, key: &Key) -> Result<Vec<u8>, Error>;
 pub fn encrypt_into(plaintext: &[u8], scheme: Scheme, key: &Key, out: &mut Vec<u8>) -> Result<(), Error>;
 
-pub fn decrypt(payload: &[u8], key: &Key) -> Result<Vec<u8>, Error>;
-pub fn decrypt_into(payload: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(), Error>;
-
-pub fn decrypt_as(payload: &[u8], scheme: Scheme, key: &Key) -> Result<Vec<u8>, Error>;
-pub fn decrypt_as_into(payload: &[u8], scheme: Scheme, key: &Key, out: &mut Vec<u8>) -> Result<(), Error>;
+pub fn decrypt(scheme_output: &[u8], scheme: Scheme, key: &Key) -> Result<Vec<u8>, Error>;
+pub fn decrypt_into(scheme_output: &[u8], scheme: Scheme, key: &Key, out: &mut Vec<u8>) -> Result<(), Error>;
 ```
 
-`decrypt` auto-dispatches on the trailing marker; `decrypt_as`
-additionally verifies the marker matches an expected scheme.
+Raw per-scheme primitives live under
+`obcrypt::schemes::{dsiv, psiv, dgcmsiv, pgcmsiv, ...}` for callers
+that already know the scheme statically and want to skip the enum
+dispatch. Each scheme module exposes the same four functions:
+`encrypt`, `encrypt_into`, `decrypt`, `decrypt_into`.
 
-Raw per-scheme primitives (without framing) live under
-`obcrypt::schemes::{aasv, aags, apsv, apgs, upbc, ...}` for callers
-that want to manage the marker themselves — e.g. integrators that
-already track the scheme in a separate field, or hot-path consumers
-that want to skip the dispatch. Each scheme module exposes the same
-four functions: `encrypt`, `encrypt_into`, `decrypt`, `decrypt_into`.
+## Key material
+
+A single 64-byte master key serves every scheme:
+
+- `dsiv` / `psiv` use the full 64 bytes directly as the AES-SIV key.
+- `dgcmsiv` / `pgcmsiv` derive a 32-byte AES-256-GCM-SIV key from the
+  master with `HKDF-Expand` (HMAC-SHA-256, info `gcmsiv` shared by both
+  GCM-SIV schemes; the Extract step is skipped, as the master is
+  already a uniform pseudorandom key).
+
+`Key` is `ZeroizeOnDrop` and redacts its `Debug` output.
 
 ## Performance
 
@@ -148,19 +151,32 @@ sensitive paths (the `oboron` crate uses it on every `enc` /
 ## Cargo features
 
 See [`FEATURES.md`](FEATURES.md) for the full matrix. By default
-every production scheme (`aags`, `apgs`, `aasv`, `apsv`, `upbc`) is
+every production scheme (`dgcmsiv`, `pgcmsiv`, `dsiv`, `psiv`) is
 enabled; schemes are individually gated so binary size scales with
 what you actually use.
 
 ## Versioning
 
-Pre-1.0; the Rust API may evolve across 0.x minor releases. See
-[`CHANGELOG.md`](CHANGELOG.md) for release notes. The framed
-payload format and the `Scheme::marker` byte assignments are bound
-to the oboron protocol spec and are stable across the 0.x series
-— a payload produced by any `obcrypt 0.x` build decrypts under any
-other 0.x build with the matching scheme feature enabled.
+`obcrypt` follows semver from 1.0. See [`CHANGELOG.md`](CHANGELOG.md)
+for release notes. The scheme output formats are bound to the oboron
+protocol spec: output produced by any `obcrypt 1.x` build decrypts
+under any other 1.x build with the matching scheme feature enabled.
 
 ## License
 
-MIT — see [LICENSE](../LICENSE).
+Licensed under either of
+
+- Apache License, Version 2.0
+  ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or
+  <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+### Contribution
+
+Unless you explicitly state otherwise, any contribution
+intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as
+above, without any additional terms or conditions.

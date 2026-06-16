@@ -2,9 +2,8 @@
 
 Python bindings for [`obcrypt`][obcrypt-rs] — the bytes-in /
 bytes-out cryptographic core of the [oboron][oboron] protocol.
-Authenticated (a-tier) and unauthenticated-but-real (u-tier)
-symmetric encryption operating on raw bytes; no text encoding,
-no UTF-8 validation.
+Authenticated symmetric encryption operating on raw bytes; no
+text encoding, no UTF-8 validation.
 
 [obcrypt-rs]: https://gitlab.com/oboron/obcrypt-rs
 [oboron]: https://oboron.org/
@@ -50,10 +49,10 @@ handles many messages.
 import obcrypt
 
 key = obcrypt.generate_key()
-aasv = obcrypt.Aasv(key)
+dsiv = obcrypt.Dsiv(key)
 
-payload = aasv.encrypt(b"hello")
-plaintext = aasv.decrypt(payload)
+payload = dsiv.encrypt(b"hello")
+plaintext = dsiv.decrypt(payload)
 assert plaintext == b"hello"
 ```
 
@@ -61,7 +60,7 @@ Or, from an env var:
 
 ```python
 import os, obcrypt
-aasv = obcrypt.Aasv(os.environ["OBCRYPT_KEY"])
+dsiv = obcrypt.Dsiv(os.environ["OBCRYPT_KEY"])
 ```
 
 ### Free-function style
@@ -75,36 +74,38 @@ from obcrypt import schemes
 
 key = obcrypt.generate_key()
 
-payload = obcrypt.encrypt(b"hello", schemes.AASV, key)
-plaintext = obcrypt.decrypt(payload, key)         # auto-detect
+payload = obcrypt.encrypt(b"hello", schemes.DSIV, key)
+plaintext = obcrypt.decrypt(payload, schemes.DSIV, key)
 assert plaintext == b"hello"
 ```
 
-`decrypt` auto-detects the scheme from the trailing marker in
-the payload. Use `decrypt_as(payload, scheme, key)` if you want
-to require a specific scheme and reject mismatches.
+The output carries no scheme marker, so the same scheme used to
+encrypt must be supplied to `decrypt`; a wrong scheme raises
+`DecryptionFailed` (the authentication check fails).
 
 ## Schemes
 
-| Name   | Tier        | Determinism   | Algorithm     |
-|--------|-------------|---------------|---------------|
-| `aags` | a (auth)    | deterministic | AES-GCM-SIV   |
-| `apgs` | a (auth)    | probabilistic | AES-GCM-SIV   |
-| `aasv` | a (auth)    | deterministic | AES-SIV       |
-| `apsv` | a (auth)    | probabilistic | AES-SIV       |
-| `upbc` | u (unauth)  | probabilistic | AES-CBC       |
+All four are authenticated.
 
-See the [obcrypt crate docs][obcrypt-rs] for algorithm details
-and per-scheme use-case guidance.
+| Name      | Determinism   | Algorithm     |
+|-----------|---------------|---------------|
+| `dsiv`    | deterministic | AES-SIV       |
+| `psiv`    | probabilistic | AES-SIV       |
+| `dgcmsiv` | deterministic | AES-GCM-SIV   |
+| `pgcmsiv` | probabilistic | AES-GCM-SIV   |
+
+`dsiv` is the most general default. See the [obcrypt crate
+docs][obcrypt-rs] for algorithm details and per-scheme use-case
+guidance.
 
 ## Exceptions
 
 All errors inherit from `obcrypt.ObcryptError`:
 
 - `InvalidKey` — bad hex / wrong-length key
-- `InvalidScheme` — unknown scheme name / marker mismatch
+- `InvalidScheme` — unknown scheme name
 - `EncryptionFailed` — AEAD failure / empty plaintext
-- `DecryptionFailed` — tag check, padding, short payload, etc.
+- `DecryptionFailed` — tag check, short payload, wrong scheme
 
 ## Development build
 
@@ -116,5 +117,8 @@ maturin develop --release
 
 ## License
 
-MIT — see
-[LICENSE](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt-py/LICENSE).
+Licensed under either of Apache License, Version 2.0
+([LICENSE-APACHE](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt-py/LICENSE-APACHE))
+or the MIT license
+([LICENSE-MIT](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt-py/LICENSE-MIT))
+at your option. Both texts are bundled in the package.

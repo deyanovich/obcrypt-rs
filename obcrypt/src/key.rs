@@ -4,15 +4,12 @@
 //! semantics: the bytes are zeroed when the `Key` is dropped, and the
 //! [`Debug`](std::fmt::Debug) impl redacts the contents.
 //!
-//! Different schemes use different slices of the 64 bytes:
+//! Schemes consume the master differently:
 //!
-//! - `aasv` / `apsv` (AES-SIV) use all 64 bytes.
-//! - `aags` / `apgs` (AES-GCM-SIV) use bytes `32..64`.
-//! - `upbc` (AES-CBC) uses bytes `8..40`.
-//!
-//! This means a single 64-byte key can be shared across all schemes
-//! without overlap of the active key material between SIV and GCM-SIV
-//! variants.
+//! - `dsiv` / `psiv` (AES-SIV) use all 64 bytes directly.
+//! - `dgcmsiv` / `pgcmsiv` (AES-GCM-SIV) derive a 32-byte AES-256 key
+//!   from the master with `HKDF-Expand` (HMAC-SHA-256, info `gcmsiv`,
+//!   shared by both), so a single master serves every scheme.
 //!
 //! # Text encoding
 //!
@@ -118,23 +115,11 @@ impl Key {
 
     /// Borrow the underlying 64 bytes.
     ///
-    /// Per-scheme primitives use only the slice they need:
-    /// `aasv`/`apsv` use all 64 bytes; `aags`/`apgs` use bytes 32..64;
-    /// `upbc` uses bytes 8..40.
+    /// `dsiv`/`psiv` use all 64 bytes directly; `dgcmsiv`/`pgcmsiv`
+    /// derive their 32-byte AES key from the master via HKDF.
     #[inline(always)]
     pub fn as_bytes(&self) -> &[u8; 64] {
         &self.bytes
-    }
-
-    /// Borrow an `N`-byte sub-array of the master key starting at
-    /// offset `O`. Used by per-scheme primitives to get a fixed-size
-    /// key slice for their cipher (e.g. AES-256 needs `&[u8; 32]`).
-    ///
-    /// Bounds (`O + N <= 64`) are validated at first call via
-    /// `try_into`; under inlining + LTO the bounds check folds out.
-    #[inline(always)]
-    pub(crate) fn subkey<const O: usize, const N: usize>(&self) -> &[u8; N] {
-        (&self.bytes[O..O + N]).try_into().unwrap()
     }
 
     /// Construct a key from a 128-character hex string (lowercase or

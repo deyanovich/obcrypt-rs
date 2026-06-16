@@ -7,6 +7,32 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 
+## [1.0.0] - 2026-06-15
+
+### Changed
+
+Tracks the obcrypt 1.0 core. **Breaking**, and outputs are not
+compatible with prior releases:
+
+- **Codec classes renamed** to the `<property><algorithm>` scheme
+  shape: `Aasv` → `Dsiv`, `Apsv` → `Psiv`, `Aags` → `Dgcmsiv`,
+  `Apgs` → `Pgcmsiv`. The `schemes` constants rename to match
+  (`AASV` → `DSIV`, etc.).
+- **`decrypt` now takes the scheme**: `decrypt(payload, scheme, key)`.
+  The output carries no marker, so there is no auto-detection;
+  decrypting under the wrong scheme raises `DecryptionFailed`.
+  `decrypt_as` is removed (the new `decrypt` is the strict-scheme
+  form).
+- **GCM-SIV keys are derived via HKDF** from the master, so
+  `dgcmsiv` / `pgcmsiv` outputs differ from prior releases.
+
+### Removed
+
+- **The `upbc` codec / scheme** is gone — obcrypt is now
+  authenticated-only; the unauthenticated and obfuscation schemes
+  live in the separate obu layer.
+
+
 ## [0.1.2] - 2026-05-22
 
 ### Changed

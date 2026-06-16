@@ -8,24 +8,22 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 authors.workspace = true
-description = "Bytes-in/bytes-out cryptographic core of the oboron protocol (a-tier + u-tier schemes, no encoding)."
+description = "Bytes-in/bytes-out cryptographic core of the oboron protocol (authenticated core schemes, no encoding)."
 keywords = ["encryption", "cryptography", "oboron", "aes", "siv"]
-categories = ["cryptography", "no-std"]
+categories = ["cryptography"]
 readme = "README.md"
 
 [features]
-# obcrypt is all-secure (a-tier authenticated, u-tier unauthenticated
-# but still real cryptography); there is no unsecure subset, so no
-# `secure-schemes` aggregate is needed at this layer. Default enables
-# the five production schemes directly.
-default = ["aags", "apgs", "aasv", "apsv", "upbc"]
+# obcrypt provides the authenticated core schemes (the unauthenticated
+# and obfuscation schemes live in the separate obu layer). Default
+# enables all four production schemes directly.
+default = ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"]
 
 # Individual schemes
-aags = ["aes-gcm-siv"]
-apgs = ["aes-gcm-siv"]
-aasv = ["aes-siv"]
-apsv = ["aes-siv"]
-upbc = ["aes", "cipher", "cbc"]
+dgcmsiv = ["aes-gcm-siv", "hkdf", "sha2"]
+pgcmsiv = ["aes-gcm-siv", "hkdf", "sha2"]
+dsiv = ["aes-siv"]
+psiv = ["aes-siv"]
 
 # Testing-only schemes (no encryption)
 mock = []
@@ -37,11 +35,10 @@ aead = { version = "0.5", default-features = false, features = ["alloc"] }
 hex.workspace = true
 
 # Conditionally included based on features
-aes = { version = "0.8", optional = true }
-cipher = { version = "0.4", optional = true }
-cbc = { version = "0.1", optional = true }
 aes-gcm-siv = { version = "0.11", optional = true }
 aes-siv = { version = "0.7", optional = true }
+hkdf = { version = "0.12", optional = true }
+sha2 = { version = "0.10", optional = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 rand = "0.8"

@@ -2,8 +2,9 @@
 name = "obcrypt-py"
 # Decoupled from the workspace version: the Python package on PyPI
 # follows its own release cadence, independent of the obcrypt Rust
-# crate on crates.io.
-version = "0.1.2"
+# crate on crates.io. 1.0.0 aligns the first stable Python release
+# with the obcrypt 1.0 core.
+version = "1.0.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -11,7 +12,7 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 authors.workspace = true
-description = "Python bindings for obcrypt — bytes-in/bytes-out symmetric encryption (oboron protocol, a-tier + u-tier)."
+description = "Python bindings for obcrypt — bytes-in/bytes-out authenticated encryption (oboron protocol core schemes)."
 keywords = ["python", "encryption", "cryptography", "oboron"]
 categories = ["cryptography", "api-bindings"]
 readme = "README.md"
@@ -24,21 +25,19 @@ name = "_obcrypt"
 crate-type = ["cdylib"]
 
 [features]
-# obcrypt is all-secure (a-tier authenticated, u-tier unauthenticated
-# but still real cryptography); there is no unsecure subset, so no
-# `secure-schemes` aggregate is needed at this layer. Default enables
-# the five production schemes directly.
-default = ["aags", "apgs", "aasv", "apsv", "upbc"]
+# obcrypt's core schemes are all authenticated, so there is no unsecure
+# subset and no `secure-schemes` aggregate is needed at this layer.
+# Default enables the four production schemes directly.
+default = ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"]
 
 # Individual schemes — each forwards to obcrypt AND enables the local
 # feature flag that gates the binding code in `src/lib.rs`. Without the
 # local flag the binding for that scheme is silently omitted from the
 # module.
-aags = ["obcrypt/aags"]
-apgs = ["obcrypt/apgs"]
-aasv = ["obcrypt/aasv"]
-apsv = ["obcrypt/apsv"]
-upbc = ["obcrypt/upbc"]
+dgcmsiv = ["obcrypt/dgcmsiv"]
+pgcmsiv = ["obcrypt/pgcmsiv"]
+dsiv = ["obcrypt/dsiv"]
+psiv = ["obcrypt/psiv"]
 mock = ["obcrypt/mock"]
 
 [dependencies]

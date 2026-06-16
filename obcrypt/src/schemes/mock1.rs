@@ -4,11 +4,11 @@
 //! disabled by default. Exists to:
 //!
 //! - Provide a no-crypto round-trip baseline for unit tests.
-//! - Isolate framing / cross-crate / dispatch overhead from AEAD
-//!   cost in benchmarks (any timing diff between `mock1` and master
-//!   is pure layering overhead).
+//! - Isolate cross-crate / dispatch overhead from AEAD cost in
+//!   benchmarks (any timing diff between `mock1` and a real scheme is
+//!   pure layering overhead).
 //! - Serve as the simplest possible valid scheme for testing the
-//!   marker dispatch logic.
+//!   scheme dispatch logic.
 //!
 //! **Never enable `mock` in a production build.** Ciphertext == plaintext.
 

@@ -26,23 +26,20 @@ fn map_error(e: obcrypt::Error) -> PyErr {
         obcrypt::Error::InvalidKeyLength | obcrypt::Error::InvalidHex => {
             InvalidKey::new_err(msg)
         }
-        obcrypt::Error::UnknownScheme | obcrypt::Error::SchemeMarkerMismatch => {
-            InvalidScheme::new_err(msg)
-        }
+        obcrypt::Error::UnknownScheme => InvalidScheme::new_err(msg),
         obcrypt::Error::EncryptionFailed | obcrypt::Error::EmptyPlaintext => {
             EncryptionFailed::new_err(msg)
         }
         obcrypt::Error::DecryptionFailed
         | obcrypt::Error::EmptyPayload
-        | obcrypt::Error::PayloadTooShort
-        | obcrypt::Error::InvalidBlockLength => DecryptionFailed::new_err(msg),
+        | obcrypt::Error::PayloadTooShort => DecryptionFailed::new_err(msg),
         // obcrypt::Error is #[non_exhaustive]; future variants fall here.
         _ => ObcryptError::new_err(msg),
     }
 }
 
-/// Parse a scheme string (case-insensitive 4-letter identifier) into the
-/// Rust enum, mapping parse failure to `InvalidScheme`.
+/// Parse a scheme string (case-insensitive identifier) into the Rust
+/// enum, mapping parse failure to `InvalidScheme`.
 fn parse_scheme(s: &str) -> PyResult<obcrypt::Scheme> {
     s.parse::<obcrypt::Scheme>().map_err(map_error)
 }
@@ -56,15 +53,15 @@ fn parse_key(hex: &str) -> PyResult<obcrypt::Key> {
 // Module-level functions
 // ---------------------------------------------------------------------------
 
-/// Encrypt `plaintext` under `scheme` and return the framed payload.
+/// Encrypt `plaintext` under `scheme` and return the scheme output bytes.
 ///
-/// `scheme` is a 4-letter identifier like `"aasv"`, `"apgs"`, `"upbc"`.
+/// `scheme` is a lowercase identifier like `"dsiv"` or `"pgcmsiv"`.
 /// `key` is a 128-character hex string — the canonical oboron key form,
 /// what env vars and config files carry. Bad hex or wrong length raises
 /// `InvalidKey`.
 ///
-/// The output is the scheme's ciphertext followed by two XOR'd scheme-
-/// marker bytes — see the obcrypt crate docs for the framing details.
+/// The output is exactly the scheme's AEAD output — there is no marker,
+/// so the same `scheme` must be supplied to `decrypt`.
 #[pyfunction]
 fn encrypt<'py>(
     py: Python<'py>,
@@ -78,24 +75,13 @@ fn encrypt<'py>(
     Ok(PyBytes::new(py, &out))
 }
 
-/// Decrypt a framed payload, auto-detecting the scheme from the
-/// trailing marker. `key` is a 128-character hex string.
+/// Decrypt `scheme_output` under `scheme` and return the plaintext.
+///
+/// The output carries no marker, so the same `scheme` used to encrypt
+/// must be supplied. A wrong scheme raises `DecryptionFailed` (the
+/// authentication check fails). `key` is a 128-character hex string.
 #[pyfunction]
 fn decrypt<'py>(
-    py: Python<'py>,
-    payload: &[u8],
-    key: &str,
-) -> PyResult<Bound<'py, PyBytes>> {
-    let k = parse_key(key)?;
-    let out = obcrypt::decrypt(payload, &k).map_err(map_error)?;
-    Ok(PyBytes::new(py, &out))
-}
-
-/// Decrypt a framed payload, requiring the trailing marker to match
-/// `scheme`. Raises `InvalidScheme` on marker mismatch. `key` is a
-/// 128-character hex string.
-#[pyfunction]
-fn decrypt_as<'py>(
     py: Python<'py>,
     payload: &[u8],
     scheme: &str,
@@ -103,7 +89,7 @@ fn decrypt_as<'py>(
 ) -> PyResult<Bound<'py, PyBytes>> {
     let s = parse_scheme(scheme)?;
     let k = parse_key(key)?;
-    let out = obcrypt::decrypt_as(payload, s, &k).map_err(map_error)?;
+    let out = obcrypt::decrypt(payload, s, &k).map_err(map_error)?;
     Ok(PyBytes::new(py, &out))
 }
 
@@ -139,8 +125,9 @@ macro_rules! impl_codec_class {
         #[doc = concat!(
             "Codec binding scheme `", $scheme_lit, "` to a key.\n\n",
             "Construct with a 128-character hex key string — the canonical ",
-            "oboron key form, what env vars carry. `decrypt` rejects payloads ",
-            "whose trailing marker doesn't match `", $scheme_lit, "`."
+            "oboron key form, what env vars carry. `decrypt` expects output ",
+            "produced under `", $scheme_lit, "`; a wrong scheme fails the ",
+            "authentication check."
         )]
         #[pyclass(module = "obcrypt._obcrypt")]
         pub struct $py_name {
@@ -172,14 +159,15 @@ macro_rules! impl_codec_class {
                 Ok(PyBytes::new(py, &out))
             }
 
-            /// Decrypt a payload, requiring its trailing marker to match
-            /// this codec's scheme. Raises `InvalidScheme` on mismatch.
+            /// Decrypt output produced under this codec's scheme. A
+            /// wrong scheme raises `DecryptionFailed` (authentication
+            /// check fails).
             fn decrypt<'py>(
                 &self,
                 py: Python<'py>,
                 payload: &[u8],
             ) -> PyResult<Bound<'py, PyBytes>> {
-                let out = obcrypt::decrypt_as(
+                let out = obcrypt::decrypt(
                     payload,
                     obcrypt::Scheme::$scheme_variant,
                     &self.inner,
@@ -203,7 +191,7 @@ macro_rules! impl_codec_class {
                 PyBytes::new(py, self.inner.as_bytes())
             }
 
-            /// The 4-letter scheme identifier (constant for this class).
+            /// The scheme identifier (constant for this class).
             #[getter]
             fn scheme(&self) -> &'static str {
                 $scheme_lit
@@ -216,11 +204,10 @@ macro_rules! impl_codec_class {
     };
 }
 
-impl_codec_class!(Aags, Aags, "aags", "aags");
-impl_codec_class!(Apgs, Apgs, "apgs", "apgs");
-impl_codec_class!(Aasv, Aasv, "aasv", "aasv");
-impl_codec_class!(Apsv, Apsv, "apsv", "apsv");
-impl_codec_class!(Upbc, Upbc, "upbc", "upbc");
+impl_codec_class!(Dgcmsiv, Dgcmsiv, "dgcmsiv", "dgcmsiv");
+impl_codec_class!(Pgcmsiv, Pgcmsiv, "pgcmsiv", "pgcmsiv");
+impl_codec_class!(Dsiv, Dsiv, "dsiv", "dsiv");
+impl_codec_class!(Psiv, Psiv, "psiv", "psiv");
 
 // ---------------------------------------------------------------------------
 // Module init
@@ -238,21 +225,18 @@ fn _obcrypt(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("DecryptionFailed", py.get_type::<DecryptionFailed>())?;
 
     // Codec classes (each feature-gated to match the obcrypt crate)
-    #[cfg(feature = "aags")]
-    m.add_class::<Aags>()?;
-    #[cfg(feature = "apgs")]
-    m.add_class::<Apgs>()?;
-    #[cfg(feature = "aasv")]
-    m.add_class::<Aasv>()?;
-    #[cfg(feature = "apsv")]
-    m.add_class::<Apsv>()?;
-    #[cfg(feature = "upbc")]
-    m.add_class::<Upbc>()?;
+    #[cfg(feature = "dgcmsiv")]
+    m.add_class::<Dgcmsiv>()?;
+    #[cfg(feature = "pgcmsiv")]
+    m.add_class::<Pgcmsiv>()?;
+    #[cfg(feature = "dsiv")]
+    m.add_class::<Dsiv>()?;
+    #[cfg(feature = "psiv")]
+    m.add_class::<Psiv>()?;
 
     // Module-level functions
     m.add_function(wrap_pyfunction!(encrypt, m)?)?;
     m.add_function(wrap_pyfunction!(decrypt, m)?)?;
-    m.add_function(wrap_pyfunction!(decrypt_as, m)?)?;
     m.add_function(wrap_pyfunction!(generate_key, m)?)?;
     m.add_function(wrap_pyfunction!(generate_key_bytes, m)?)?;
 

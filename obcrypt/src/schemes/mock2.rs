@@ -2,8 +2,8 @@
 //!
 //! Returns plaintext bytes reversed. Behind the `mock` feature flag,
 //! disabled by default. Like [`mock1`](super::mock1) but produces a
-//! distinguishable output, useful for testing that the marker
-//! dispatch routes to the right scheme.
+//! distinguishable output, useful for testing that scheme dispatch
+//! routes to the right scheme.
 //!
 //! **Never enable `mock` in a production build.** Reversing bytes is
 //! not encryption.

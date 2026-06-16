@@ -1,0 +1,35 @@
+[package]
+name = "obcrypt-ffi"
+# Tracks obcrypt 1.0.x. The C ABI has its own stability surface (the
+# generated header) and is versioned independently; 1.0.0 aligns the
+# first stable ABI with the obcrypt 1.0 core.
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.77.0"
+authors = ["Bojan Đuričković"]
+license = "MIT OR Apache-2.0"
+repository = "https://gitlab.com/oboron/obcrypt-rs"
+description = "C ABI for obcrypt — a thin extern \"C\" surface over the bytes-in/bytes-out crypto core so non-Rust languages can call it through FFI."
+homepage = "https://oboron.org/"
+documentation = "https://oboron.org/"
+# Ships as a built shared/static library plus a C header, not as a
+# crates.io dependency — a cdylib isn't consumable from Cargo.
+publish = false
+
+[lib]
+name = "obcrypt_ffi"
+# cdylib → libobcrypt_ffi.{so,dylib,dll} for runtime FFI;
+# staticlib → libobcrypt_ffi.a for static embedding.
+crate-type = ["cdylib", "staticlib"]
+
+[features]
+# Mirror obcrypt's scheme gating so a consumer can trim the ABI to
+# the schemes it needs. Default is the four production schemes.
+default = ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"]
+dgcmsiv = ["obcrypt/dgcmsiv"]
+pgcmsiv = ["obcrypt/pgcmsiv"]
+dsiv = ["obcrypt/dsiv"]
+psiv = ["obcrypt/psiv"]
+
+[dependencies]
+obcrypt = { workspace = true, default-features = false }

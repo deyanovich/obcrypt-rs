@@ -1,5 +1,5 @@
 [workspace]
-members = ["obcrypt", "obcrypt-py"]
+members = ["obcrypt", "obcrypt-py", "obcrypt-wasm", "obcrypt-ffi"]
 resolver = "2"
 
 # Release / bench profiles at the workspace level so they actually
@@ -16,10 +16,10 @@ codegen-units = 1
 inherits = "release"
 
 [workspace.package]
-version = "0.2.0"
+version = "1.0.0-rc1"
 edition = "2021"
 rust-version = "1.77.0"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://gitlab.com/oboron/obcrypt-rs"
 homepage = "https://oboron.org/"
 documentation = "https://oboron.org/obcrypt"
@@ -28,7 +28,7 @@ authors = ["Bojan Đuričković"]
 [workspace.dependencies]
 # Sibling crates (path deps for in-workspace builds; consumers outside
 # the workspace use the crates.io version).
-obcrypt = { path = "obcrypt", version = "0.2.0", default-features = false }
+obcrypt = { path = "obcrypt", version = "1.0.0-rc1", default-features = false }
 
 # Shared third-party deps
 rand = "0.8"
@@ -38,3 +38,7 @@ zeroize = { version = "1", features = ["derive"] }
 # `hex` is the canonical text encoding for obcrypt keys.
 hex = "0.4"
 pyo3 = { version = "0.28", features = ["extension-module", "abi3-py38"] }
+
+# wasm-bindgen for the obcrypt-wasm npm bindings.
+wasm-bindgen = "0.2"
+wasm-bindgen-test = "0.3"

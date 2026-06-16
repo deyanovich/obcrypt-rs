@@ -1,0 +1,4 @@
+# wasm-pack output (the generated npm package)
+/pkg/
+# npm
+/node_modules/
