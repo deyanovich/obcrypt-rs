@@ -13,12 +13,54 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 
-## [1.0.0] - 2026-06-15
+## [1.0.0] - 2026-06-26
 
 First stable release, tracking the oboron 1.0 protocol. This is a
 clean break from the 0.x line — schemes are renamed, the framing is
 gone, and the unauthenticated scheme has moved out. Outputs are **not**
-compatible with 0.x.
+compatible with 0.x. Supersedes the `1.0.0-rc1` prerelease, adding the
+conformance, hardening, buffer-contract, doc, and test fixes below; the
+rc1 core rework (the bullets further down) is unchanged.
+
+### Security
+
+- **Canonical lowercase hex keys enforced.** `Key::from_hex` now
+  rejects uppercase and other non-canonical hex (oboron spec §3.3),
+  rather than case-folding via the `hex` crate. Use `Key::from_bytes`
+  for non-canonical input.
+- **`mock1` / `mock2` are no longer parseable from a string.**
+  `Scheme::from_str` rejects them even when the `mock` feature is
+  enabled, so a no-encryption scheme can never be selected through a
+  string/config channel. Explicit `Scheme::Mock1` / `Scheme::Mock2`
+  construction is unaffected.
+
+### Fixed
+
+- **`encrypt_into` / `decrypt_into` are now all-or-nothing.** On any
+  error — including an AEAD authentication failure — the caller's
+  buffer is truncated back to its length on entry, never left extended
+  with partial or unverified bytes.
+- **Clear error for a no-scheme build.** Building with no scheme
+  feature now fails with an explicit `compile_error!` message instead
+  of a cryptic non-exhaustive-match error; a `mock`-only build is
+  warning-clean.
+- **Documentation corrections.** The `dsiv` module doc described its
+  output layout backwards (it is `SIV tag || ciphertext`); the
+  `documentation` metadata URL pointed at a 404 (now docs.rs); the
+  README license badge said MIT only (the crate is dual MIT/Apache); a
+  SECURITY.md AES-SIV sub-key count was wrong; and the
+  `EncryptionFailed` doc overstated when it occurs. SECURITY.md gains
+  GCM-SIV fixed-nonce usage limits (RFC 8452 §6), an audit-status
+  disclaimer, and a wrong-scheme-relabeling caveat.
+
+### Internal
+
+- GCM-SIV key derivation is a single shared helper used by both
+  `dgcmsiv` and `pgcmsiv`, instead of duplicated verbatim per scheme.
+- Added known-answer tests pinning each deterministic scheme's wire
+  format, extended the adversarial suite (wrong key, tamper,
+  too-short, all-or-nothing buffer) to every scheme, and added a
+  GitLab CI pipeline running the full test / feature matrix.
 
 ### Changed
 

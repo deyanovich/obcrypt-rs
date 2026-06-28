@@ -7,8 +7,9 @@
 //! - **Key**: uses the **full 64-byte** master key.
 //! - **Nonce**: none — SIV synthesizes its IV from the plaintext +
 //!   associated data.
-//! - **Payload**: `ciphertext_with_tag` (no nonce prefix). Tag is
-//!   16 bytes, so a 1-byte plaintext yields a 17-byte ciphertext.
+//! - **Payload**: `16-byte SIV tag || ciphertext` (no nonce prefix).
+//!   The SIV tag (the synthetic IV) comes **first**; a 1-byte plaintext
+//!   yields a 17-byte output.
 //!
 //! dsiv is the **default recommended scheme** for new
 //! deterministic-encryption use cases — broad nonce-misuse resistance
@@ -26,10 +27,10 @@ use aes_siv::{aead::KeyInit, siv::Aes256Siv};
 
 const MIN_PAYLOAD_LEN: usize = 17;
 
-/// Encrypt `plaintext` and return a fresh `Vec<u8>` of `ciphertext || tag`.
+/// Encrypt `plaintext` and return a fresh `Vec<u8>` of `SIV tag || ciphertext`.
 ///
 /// Uses `Aes256Siv::encrypt`, which allocates the output Vec at
-/// exact capacity (plaintext_len + 16-byte tag) in a single pass.
+/// exact capacity (16-byte tag + plaintext_len) in a single pass.
 ///
 /// # Errors
 ///
@@ -47,10 +48,11 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
         .map_err(|_| Error::EncryptionFailed)
 }
 
-/// Encrypt `plaintext` and append `ciphertext || tag` to `out`.
+/// Encrypt `plaintext` and append `SIV tag || ciphertext` to `out`.
 ///
 /// Writes directly into `out` via `encrypt_in_place` — no intermediate
-/// Vec allocation. `out` is appended to, not cleared.
+/// Vec allocation. On success `out` is extended by the scheme output;
+/// on error `out` is left exactly as it was on entry (all-or-nothing).
 ///
 /// # Errors
 ///
@@ -66,12 +68,14 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     let mut cipher = Aes256Siv::new(key.as_bytes().into());
     let headers: &[&[u8]] = &[];
     let mut tail = TailBuffer::new(out, start);
-    cipher
-        .encrypt_in_place(headers, &mut tail)
-        .map_err(|_| Error::EncryptionFailed)
+    if cipher.encrypt_in_place(headers, &mut tail).is_err() {
+        out.truncate(start);
+        return Err(Error::EncryptionFailed);
+    }
+    Ok(())
 }
 
-/// Decrypt `ciphertext` (= raw `ciphertext || tag` from `encrypt`)
+/// Decrypt `ciphertext` (= raw `SIV tag || ciphertext` from `encrypt`)
 /// and return a fresh `Vec<u8>` of plaintext.
 ///
 /// # Errors
@@ -95,7 +99,9 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
 ///
 /// Internally copies `ciphertext` into the `out` tail and runs
 /// `decrypt_in_place` on it (the AEAD trait requires a mutable buffer).
-/// `out` is appended to, not cleared.
+/// On success `out` is extended by the recovered plaintext; on error
+/// `out` is left exactly as it was on entry (all-or-nothing) — a failed
+/// authentication never leaves partial or unverified bytes behind.
 ///
 /// # Errors
 ///
@@ -111,7 +117,9 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
     let mut cipher = Aes256Siv::new(key.as_bytes().into());
     let headers: &[&[u8]] = &[];
     let mut tail = TailBuffer::new(out, start);
-    cipher
-        .decrypt_in_place(headers, &mut tail)
-        .map_err(|_| Error::DecryptionFailed)
+    if cipher.decrypt_in_place(headers, &mut tail).is_err() {
+        out.truncate(start);
+        return Err(Error::DecryptionFailed);
+    }
+    Ok(())
 }

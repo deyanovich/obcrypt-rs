@@ -18,32 +18,17 @@
 //! [RFC 8452]: https://www.rfc-editor.org/rfc/rfc8452
 
 use super::buffer::TailBuffer;
+use super::gcmsiv::derive_key;
 use crate::{Error, Key};
 use aes_gcm_siv::{
     aead::{Aead, AeadInPlace, KeyInit},
     Aes256GcmSiv, Nonce,
 };
-use hkdf::Hkdf;
 use rand::RngCore;
-use sha2::Sha256;
-use zeroize::Zeroizing;
 
 const NONCE_SIZE: usize = 12;
 const TAG_SIZE: usize = 16;
 const MIN_PAYLOAD_LEN: usize = NONCE_SIZE + 1 + TAG_SIZE;
-
-/// HKDF-Expand the master into the 32-byte AES-256-GCM-SIV key. The
-/// `gcmsiv` info is shared with `dgcmsiv`, so both GCM-SIV schemes derive
-/// the same key. Extract is omitted: the 64-byte master is already a
-/// uniform pseudorandom key.
-#[inline]
-fn derive_key(key: &Key) -> Zeroizing<[u8; 32]> {
-    let hk = Hkdf::<Sha256>::from_prk(key.as_bytes()).expect("master is a valid 64-byte PRK");
-    let mut okm = Zeroizing::new([0u8; 32]);
-    hk.expand(b"gcmsiv", &mut okm[..])
-        .expect("32-byte OKM is within HKDF length bounds");
-    okm
-}
 
 /// Encrypt `plaintext` and return a fresh `Vec<u8>` of `nonce(12) || ciphertext_with_tag`.
 ///
@@ -74,7 +59,9 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
 }
 
 /// Encrypt `plaintext` and append `nonce || ciphertext_with_tag` to `out`.
-/// `out` is appended to, not cleared.
+///
+/// On success `out` is extended by the scheme output; on error `out` is
+/// left exactly as it was on entry (all-or-nothing).
 ///
 /// # Errors
 ///
@@ -90,6 +77,7 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     let mut nonce_bytes = [0u8; NONCE_SIZE];
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
 
+    let start = out.len();
     out.reserve(NONCE_SIZE + plaintext.len() + TAG_SIZE);
     out.extend_from_slice(&nonce_bytes);
     let pt_start = out.len();
@@ -97,9 +85,11 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
 
     let nonce = Nonce::from(nonce_bytes);
     let mut tail = TailBuffer::new(out, pt_start);
-    cipher
-        .encrypt_in_place(&nonce, b"", &mut tail)
-        .map_err(|_| Error::EncryptionFailed)
+    if cipher.encrypt_in_place(&nonce, b"", &mut tail).is_err() {
+        out.truncate(start);
+        return Err(Error::EncryptionFailed);
+    }
+    Ok(())
 }
 
 /// Decrypt `ciphertext` (= `nonce(12) || ciphertext_with_tag`) and
@@ -117,19 +107,24 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
     }
     let key_arr = derive_key(key);
 
-    let nonce_arr: &[u8; NONCE_SIZE] = (&ciphertext[..NONCE_SIZE]).try_into().unwrap();
+    // len >= MIN_PAYLOAD_LEN > NONCE_SIZE, so the split is always valid.
+    let mut nonce_bytes = [0u8; NONCE_SIZE];
+    nonce_bytes.copy_from_slice(&ciphertext[..NONCE_SIZE]);
     let ct_with_tag = &ciphertext[NONCE_SIZE..];
 
     let cipher = Aes256GcmSiv::new((&*key_arr).into());
-    let nonce = Nonce::from(*nonce_arr);
+    let nonce = Nonce::from(nonce_bytes);
 
     cipher
         .decrypt(&nonce, ct_with_tag)
         .map_err(|_| Error::DecryptionFailed)
 }
 
-/// Decrypt `ciphertext` and append plaintext to `out`. `out` is
-/// appended to, not cleared.
+/// Decrypt `ciphertext` and append plaintext to `out`.
+///
+/// On success `out` is extended by the recovered plaintext; on error
+/// `out` is left exactly as it was on entry (all-or-nothing) — a failed
+/// authentication never leaves partial or unverified bytes behind.
 ///
 /// # Errors
 ///
@@ -150,7 +145,9 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
     out.extend_from_slice(&ciphertext[NONCE_SIZE..]);
 
     let mut tail = TailBuffer::new(out, ct_start);
-    cipher
-        .decrypt_in_place(&nonce, b"", &mut tail)
-        .map_err(|_| Error::DecryptionFailed)
+    if cipher.decrypt_in_place(&nonce, b"", &mut tail).is_err() {
+        out.truncate(ct_start);
+        return Err(Error::DecryptionFailed);
+    }
+    Ok(())
 }

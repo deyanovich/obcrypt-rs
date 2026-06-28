@@ -27,6 +27,16 @@ Because the output carries no scheme marker, the scheme is part of the
 caller's context: decrypting under the wrong scheme fails the
 authentication check, exactly like a wrong key.
 
+> The wrong-scheme guarantee covers *honest* mislabeling — decrypting
+> the same output bytes under a different `Scheme` fails. It is not a
+> cryptographic binding of the scheme label: `dgcmsiv` and `pgcmsiv`
+> share one derived key and nonce space, so an adversary who crafts
+> bytes (e.g. prepends a zero nonce) can re-frame a `dgcmsiv` output as
+> a `pgcmsiv` one — without the key. Such relabeling preserves the
+> plaintext and forges no new content (no key or plaintext recovery),
+> but if your application treats "deterministic vs probabilistic" as a
+> trust boundary, bind the scheme yourself in your own framing.
+
 ## What obcrypt does not provide
 
 - **No key derivation from low-entropy input.** Bring your own 64
@@ -73,12 +83,34 @@ quality.
 
 **Why both SIV and GCM-SIV?** AES-SIV is the gold-standard
 nonce-misuse-resistant AEAD and uses the full 64-byte master directly
-(256 bits each for two AES-CMAC and one AES-CTR sub-key). AES-GCM-SIV
+(per RFC 5297 the 512-bit key splits into two 256-bit sub-keys: the
+S2V/AES-CMAC authentication key and the AES-CTR encryption key).
+AES-GCM-SIV
 is typically faster on CPUs with AES-NI and has a smaller per-message
 footprint. In practice SIV wins on short inputs while GCM-SIV scales
 better and pulls ahead on medium-to-large inputs (crossover around 256
 bytes). Offering both lets the caller trade footprint and size-scaling
 against the cleanest security story.
+
+## Usage limits
+
+The deterministic GCM-SIV scheme (`dgcmsiv`) encrypts under a fixed
+all-zero nonce, making it deterministic. This is sound only because
+AES-GCM-SIV is nonce-misuse-resistant (RFC 8452): nonce reuse does not
+cause the catastrophic two-time-pad failure of plain AES-GCM, and the
+only confidentiality loss is the deterministic-equality leak `dgcmsiv`
+already exposes by design. The binding limit is therefore on **data
+volume**, not nonce reuse: security degrades only as the total data
+encrypted under one key approaches the AES-GCM-SIV birthday bound —
+far out of practical reach for the short-string workloads obcrypt
+targets. Because the library is stateless and tracks no cumulative
+usage, honoring that bound is a deployment responsibility: callers
+encrypting at high volume under one key should rotate the master key
+well before it. `dgcmsiv` and `pgcmsiv` share one derived key (see
+[Key handling](#key-handling) below), so their volumes draw on the
+same budget. The SIV schemes (`dsiv`, `psiv`) carry comparable
+AES-SIV data-volume bounds. The fixed-nonce construction must not be
+transplanted onto plain AES-GCM, where nonce reuse is catastrophic.
 
 ## Key handling
 
@@ -135,6 +167,15 @@ Other key-handling notes:
   reduces the effective key strength to ~128 bits per AES-256 sub-key
   (still well outside currently-feasible cryptanalysis but worth
   noting if your threat model spans decades).
+
+## Audit status
+
+`obcrypt` has **not** been independently security-audited. It is a thin
+wrapper over the RustCrypto `aes-siv`, `aes-gcm-siv`, `hkdf`, and
+`sha2` crates; the cryptographic constructions follow RFC 5297,
+RFC 8452, and RFC 5869, and the wire format is pinned by the oboron
+protocol's cross-implementation test vectors. Evaluate accordingly for
+high-assurance use.
 
 ## Reporting vulnerabilities
 

@@ -122,15 +122,20 @@ impl Key {
         &self.bytes
     }
 
-    /// Construct a key from a 128-character hex string (lowercase or
-    /// uppercase, no `0x` prefix).
+    /// Construct a key from 128 lowercase hex characters (no `0x`
+    /// prefix).
     ///
-    /// Hex is the canonical text encoding for obcrypt keys.
+    /// Hex is the canonical text encoding for obcrypt keys. Canonical
+    /// hex is **lowercase only**: uppercase or mixed-case input is
+    /// rejected (oboron spec §3.3 — implementations MUST reject
+    /// non-canonical key encodings). Construct from raw bytes with
+    /// [`Self::from_bytes`] if you need to accept a non-canonical form.
     ///
     /// # Errors
     ///
-    /// [`Error::InvalidHex`] if `s` isn't valid hex or doesn't decode
-    /// to exactly 64 bytes.
+    /// [`Error::InvalidHex`] if `s` contains any character outside
+    /// `[0-9a-f]` (including uppercase) or doesn't decode to exactly
+    /// 64 bytes.
     ///
     /// # Examples
     ///
@@ -144,6 +149,13 @@ impl Key {
     /// ```
     #[inline]
     pub fn from_hex(s: &str) -> Result<Self, Error> {
+        // Canonical obcrypt keys are lowercase hex (oboron spec §3.3):
+        // reject uppercase and any other out-of-alphabet byte. The `hex`
+        // crate decodes case-insensitively, so the lowercase requirement
+        // must be enforced explicitly before decoding.
+        if !s.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {
+            return Err(Error::InvalidHex);
+        }
         let bytes = hex::decode(s).map_err(|_| Error::InvalidHex)?;
         let arr: [u8; 64] = bytes.try_into().map_err(|_| Error::InvalidHex)?;
         Ok(Key { bytes: arr })

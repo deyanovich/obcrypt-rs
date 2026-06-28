@@ -45,9 +45,9 @@
 //! equality (same plaintext + key → same output); use a probabilistic
 //! variant when that isn't acceptable.
 //!
-//! Plus testing-only schemes behind the `mock` feature flag —
-//! [`Scheme::Mock1`] (identity) and [`Scheme::Mock2`] (reverse), which
-//! perform **no encryption**.
+//! Plus testing-only schemes behind the `mock` feature flag — `mock1`
+//! (identity) and `mock2` (reverse), which perform **no encryption**
+//! and are not selectable through `Scheme::from_str`.
 //!
 //! # Output format
 //!
@@ -101,10 +101,26 @@
 //! - `default = ["dgcmsiv", "pgcmsiv", "dsiv", "psiv"]` — every
 //!   production scheme.
 //! - Per-scheme: `dgcmsiv`, `pgcmsiv`, `dsiv`, `psiv`.
-//! - `mock` — adds the testing-only [`Scheme::Mock1`] / [`Scheme::Mock2`].
+//! - `mock` — adds the testing-only `mock1` / `mock2` schemes (no
+//!   encryption; not parseable from a string).
 //!
 //! Schemes are individually gated so binary size scales with the schemes
 //! you actually use.
+
+// At least one scheme feature must be enabled; otherwise `Scheme` is an
+// empty enum and the encrypt/decrypt dispatch cannot be called. Surface a
+// clear message instead of a cryptic downstream non-exhaustive-match error.
+#[cfg(not(any(
+    feature = "dgcmsiv",
+    feature = "pgcmsiv",
+    feature = "dsiv",
+    feature = "psiv",
+    feature = "mock"
+)))]
+compile_error!(
+    "at least one obcrypt scheme feature must be enabled: \
+     dgcmsiv, pgcmsiv, dsiv, psiv, or mock"
+);
 
 mod error;
 mod key;
@@ -131,8 +147,10 @@ pub use scheme::Scheme;
 ///
 /// - [`Error::EmptyPlaintext`] if `plaintext` is empty.
 /// - [`Error::EncryptionFailed`] if the underlying AEAD primitive
-///   reports failure (in practice: out-of-memory or platform randomness
-///   failure for probabilistic schemes).
+///   reports failure — in practice only if `plaintext` exceeds the
+///   AEAD's maximum message length (effectively unreachable for normal
+///   in-memory use). RNG failure on the probabilistic schemes panics
+///   rather than returning this error.
 ///
 /// # Examples
 ///
@@ -156,7 +174,9 @@ pub fn encrypt(plaintext: &[u8], scheme: Scheme, key: &Key) -> Result<Vec<u8>, E
 /// Encrypt `plaintext` under `scheme`, appending the output to `out`.
 ///
 /// The zero-extra-allocation form: the scheme writes its ciphertext
-/// directly into `out`. `out` is appended to, not cleared.
+/// directly into `out`. On success `out` is extended by the scheme
+/// output; on error `out` is left exactly as it was on entry
+/// (all-or-nothing — never partially written).
 ///
 /// # Errors
 ///
@@ -198,6 +218,7 @@ pub fn encrypt_into(
 ///
 /// - [`Error::PayloadTooShort`] if `scheme_output` is shorter than the
 ///   scheme's minimum layout length.
+/// - [`Error::EmptyPayload`] (mock schemes only) if `scheme_output` is empty.
 /// - [`Error::DecryptionFailed`] if the AEAD tag check fails (wrong key,
 ///   wrong scheme, or tampered output).
 ///
@@ -223,7 +244,10 @@ pub fn decrypt(scheme_output: &[u8], scheme: Scheme, key: &Key) -> Result<Vec<u8
 
 /// Decrypt `scheme_output` under `scheme`, appending the plaintext to `out`.
 ///
-/// `out` is appended to, not cleared. See [`decrypt`] for behavior.
+/// On success `out` is extended by the recovered plaintext; on error
+/// `out` is left exactly as it was on entry (all-or-nothing) — a failed
+/// authentication never leaves partial or unverified bytes in `out`.
+/// See [`decrypt`] for behavior.
 ///
 /// # Errors
 ///

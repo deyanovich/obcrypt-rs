@@ -1,0 +1,55 @@
+# CI for obcrypt. Runs on the authoritative (private) GitLab project;
+# the public mirror does not run CI.
+#
+# Uses gitlab.com shared runners with the official Rust Docker image,
+# so no custom runner tags are required. The pipeline gates the lib's
+# test suite across the feature matrix — the cryptographic core must
+# never ship with a failing or unrun test.
+
+stages:
+  - test
+
+variables:
+  CARGO_TERM_COLOR: always
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths:
+    - .cargo/registry/
+    - target/
+
+default:
+  image: rust:latest
+  before_script:
+    - rustc --version && cargo --version
+
+# Full suite + per-scheme builds: each scheme must compile and test on
+# its own, and the testing-only mock build must be warning-clean.
+test:
+  stage: test
+  script:
+    - cargo test -p obcrypt --all-features
+    - cargo test -p obcrypt
+    - cargo build -p obcrypt --no-default-features --features dsiv
+    - cargo build -p obcrypt --no-default-features --features psiv
+    - cargo build -p obcrypt --no-default-features --features dgcmsiv
+    - cargo build -p obcrypt --no-default-features --features pgcmsiv
+    - cargo test -p obcrypt --no-default-features --features mock
+
+lint:
+  stage: test
+  script:
+    - rustup component add clippy rustfmt
+    - cargo fmt -p obcrypt -- --check
+    - cargo clippy -p obcrypt --all-features -- -D warnings
+
+# Validates the declared MSRV (rust-version = 1.77). Non-blocking: a
+# failure flags that the floor needs revisiting, without gating merges.
+msrv:
+  stage: test
+  image: rust:1.77
+  allow_failure: true
+  cache: {}
+  script:
+    - cargo build -p obcrypt --all-features

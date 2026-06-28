@@ -2,7 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/obcrypt.svg)](https://crates.io/crates/obcrypt)
 [![Documentation](https://docs.rs/obcrypt/badge.svg)](https://docs.rs/obcrypt)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 
 The **bytes-in / bytes-out** cryptographic core of the
 [oboron](https://oboron.org/) protocol.

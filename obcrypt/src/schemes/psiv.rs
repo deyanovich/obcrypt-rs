@@ -52,7 +52,8 @@ pub fn encrypt(plaintext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
 
 /// Encrypt `plaintext` and append `nonce || ciphertext_with_tag` to `out`.
 ///
-/// `out` is appended to, not cleared.
+/// On success `out` is extended by the scheme output; on error `out` is
+/// left exactly as it was on entry (all-or-nothing).
 ///
 /// # Errors
 ///
@@ -66,6 +67,7 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
     let mut nonce = [0u8; NONCE_SIZE];
     rand::thread_rng().fill_bytes(&mut nonce);
 
+    let start = out.len();
     out.reserve(NONCE_SIZE + plaintext.len() + TAG_SIZE);
     out.extend_from_slice(&nonce);
     let pt_start = out.len();
@@ -73,9 +75,11 @@ pub fn encrypt_into(plaintext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<()
 
     let mut cipher = Aes256Siv::new(key.as_bytes().into());
     let mut tail = TailBuffer::new(out, pt_start);
-    cipher
-        .encrypt_in_place([&nonce[..]], &mut tail)
-        .map_err(|_| Error::EncryptionFailed)
+    if cipher.encrypt_in_place([&nonce[..]], &mut tail).is_err() {
+        out.truncate(start);
+        return Err(Error::EncryptionFailed);
+    }
+    Ok(())
 }
 
 /// Decrypt `ciphertext` (= `nonce(16) || ciphertext_with_tag`) and
@@ -100,8 +104,11 @@ pub fn decrypt(ciphertext: &[u8], key: &Key) -> Result<Vec<u8>, Error> {
         .map_err(|_| Error::DecryptionFailed)
 }
 
-/// Decrypt `ciphertext` and append plaintext to `out`. `out` is
-/// appended to, not cleared.
+/// Decrypt `ciphertext` and append plaintext to `out`.
+///
+/// On success `out` is extended by the recovered plaintext; on error
+/// `out` is left exactly as it was on entry (all-or-nothing) — a failed
+/// authentication never leaves partial or unverified bytes behind.
 ///
 /// # Errors
 ///
@@ -119,7 +126,9 @@ pub fn decrypt_into(ciphertext: &[u8], key: &Key, out: &mut Vec<u8>) -> Result<(
 
     let mut cipher = Aes256Siv::new(key.as_bytes().into());
     let mut tail = TailBuffer::new(out, ct_start);
-    cipher
-        .decrypt_in_place([&nonce[..]], &mut tail)
-        .map_err(|_| Error::DecryptionFailed)
+    if cipher.decrypt_in_place([&nonce[..]], &mut tail).is_err() {
+        out.truncate(ct_start);
+        return Err(Error::DecryptionFailed);
+    }
+    Ok(())
 }

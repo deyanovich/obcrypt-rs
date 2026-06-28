@@ -75,11 +75,15 @@ function and `mock2` reverses bytes; neither performs encryption.
   its `Scheme` enum variant and the corresponding `obcrypt::schemes::*`
   module; no existing variant changes meaning when more schemes are
   enabled.
-- `Scheme::from_str` only recognizes feature-enabled schemes; a name
-  that isn't compiled into the binary returns
+- `Scheme::from_str` only recognizes feature-enabled **core** schemes;
+  a name that isn't compiled into the binary returns
   [`Error::UnknownScheme`](https://gitlab.com/oboron/obcrypt-rs/-/blob/master/obcrypt/src/error.rs).
-  Because `decrypt` takes a `Scheme` value (not a marker), there is no
-  scheme auto-detection — the caller supplies the scheme directly.
+  The `mock1` / `mock2` schemes are **never** parseable from a string,
+  even when `mock` is enabled — a no-encryption scheme must not be
+  selectable through a string/config channel; construct them explicitly
+  via `Scheme::Mock1` / `Scheme::Mock2`. Because `decrypt` takes a
+  `Scheme` value (not a marker), there is no scheme auto-detection — the
+  caller supplies the scheme directly.
 - The scheme output format is identical across feature combinations:
   output produced by a full-default build decrypts under a
   single-scheme build, as long as the receiver's enabled scheme

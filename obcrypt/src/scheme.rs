@@ -104,14 +104,21 @@ impl Scheme {
 impl std::str::FromStr for Scheme {
     type Err = Error;
 
-    /// Parse a scheme from its identifier (case-insensitive).
+    /// Parse a core scheme from its identifier (case-insensitive).
     ///
-    /// Inverse of [`Scheme::as_str`].
+    /// Inverse of [`Scheme::as_str`] **for the four authenticated core
+    /// schemes only**. The testing-only `mock1` / `mock2` schemes are
+    /// deliberately *not* parseable from a string, even when the `mock`
+    /// feature is enabled: a no-encryption scheme must never be
+    /// selectable through a string/config channel (which is the channel
+    /// most likely to carry external input). Construct them explicitly
+    /// via the `Scheme::Mock1` / `Scheme::Mock2` variants when needed in
+    /// tests.
     ///
     /// # Errors
     ///
     /// [`Error::UnknownScheme`] if `s` doesn't match a feature-enabled
-    /// scheme name.
+    /// core scheme name (`"mock1"` / `"mock2"` always return this error).
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             #[cfg(feature = "dgcmsiv")]
@@ -122,10 +129,6 @@ impl std::str::FromStr for Scheme {
             _ if s.eq_ignore_ascii_case("dsiv") => Ok(Scheme::Dsiv),
             #[cfg(feature = "psiv")]
             _ if s.eq_ignore_ascii_case("psiv") => Ok(Scheme::Psiv),
-            #[cfg(feature = "mock")]
-            _ if s.eq_ignore_ascii_case("mock1") => Ok(Scheme::Mock1),
-            #[cfg(feature = "mock")]
-            _ if s.eq_ignore_ascii_case("mock2") => Ok(Scheme::Mock2),
             _ => Err(Error::UnknownScheme),
         }
     }
