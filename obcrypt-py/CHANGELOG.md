@@ -7,7 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 
-## [1.0.0] - 2026-06-15
+## [1.0.0] - 2026-06-28
+
+### Added
+
+- `py.typed` marker (PEP 561), so type checkers consult the bundled
+  stubs and recognize the installed `obcrypt` package as typed.
 
 ### Changed
 

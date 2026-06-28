@@ -44,6 +44,20 @@ lint:
     - cargo fmt -p obcrypt -- --check
     - cargo clippy -p obcrypt --all-features -- -D warnings
 
+# Builds the obcrypt-py wheel and runs the Python binding's pytest suite,
+# exercising the PyO3 boundary (round-trip, interop, error mapping) that
+# the Rust core tests don't reach.
+python-test:
+  stage: test
+  script:
+    - apt-get update && apt-get install -y --no-install-recommends python3 python3-venv
+    - python3 -m venv .venv
+    - . .venv/bin/activate
+    - pip install --upgrade pip
+    - pip install 'maturin>=1.7,<2.0' pytest
+    - maturin develop --manifest-path obcrypt-py/Cargo.toml
+    - pytest obcrypt-py/tests -q
+
 # Validates the declared MSRV (rust-version = 1.77). Non-blocking: a
 # failure flags that the floor needs revisiting, without gating merges.
 msrv:
