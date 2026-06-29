@@ -43,6 +43,12 @@ lint:
     - rustup component add clippy rustfmt
     - cargo fmt -p obcrypt -- --check
     - cargo clippy -p obcrypt --all-features -- -D warnings
+    # Binding crates — host target (their glue is not target-gated and
+    # links via the rlib, so no wasm toolchain is needed to lint them).
+    - cargo fmt -p obcrypt-wasm -- --check
+    - cargo clippy -p obcrypt-wasm --all-features -- -D warnings
+    - cargo fmt -p obcrypt-ffi -- --check
+    - cargo clippy -p obcrypt-ffi --all-features -- -D warnings
 
 # Builds the obcrypt-py wheel and runs the Python binding's pytest suite,
 # exercising the PyO3 boundary (round-trip, interop, error mapping) that
@@ -57,6 +63,45 @@ python-test:
     - pip install 'maturin>=1.7,<2.0' pytest
     - maturin develop --manifest-path obcrypt-py/Cargo.toml
     - pytest obcrypt-py/tests -q
+
+# Builds the wasm package and runs the wasm-bindgen-test suite under
+# Node, exercising the wasm runtime + getrandom "js" backend
+# (randomness) and roundtrip correctness the host-target core tests
+# can't reach. Node 20+ (NodeSource) so the js backend finds Web Crypto.
+wasm-test:
+  stage: test
+  script:
+    - rustup target add wasm32-unknown-unknown
+    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    - apt-get install -y --no-install-recommends nodejs
+    - curl -sSfL https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+    - cd obcrypt-wasm
+    - wasm-pack test --node
+    - wasm-pack build --release --target bundler
+
+# Builds the obcrypt-ffi cdylib, runs its unit tests plus the
+# conformance suite (canonical oboron vectors through the C ABI),
+# compiles+runs the C smoke consumer, trims to each scheme, and guards
+# the committed header against cbindgen drift.
+ffi-test:
+  stage: test
+  script:
+    # The official rust image's buildpack-deps base provides cc/git; if
+    # a future image drops cc, add: apt-get install -y build-essential.
+    - git clone --depth 1 https://gitlab.com/oboron/oboron-test-vectors.git /tmp/otv
+    - OBORON_TEST_VECTORS=/tmp/otv/test-vectors.jsonl cargo test -p obcrypt-ffi
+    - cargo build -p obcrypt-ffi
+    - cc obcrypt-ffi/examples/smoke.c -Iobcrypt-ffi/include -Ltarget/debug -lobcrypt_ffi -o obcrypt-smoke
+    - LD_LIBRARY_PATH=target/debug ./obcrypt-smoke
+    - cargo build -p obcrypt-ffi --no-default-features --features dsiv
+    - cargo build -p obcrypt-ffi --no-default-features --features psiv
+    - cargo build -p obcrypt-ffi --no-default-features --features dgcmsiv
+    - cargo build -p obcrypt-ffi --no-default-features --features pgcmsiv
+    # Header drift guard: cbindgen must be pinned (0.29.x generated the
+    # committed header; other versions format differently).
+    - cargo install cbindgen --version '=0.29.4' --locked
+    - (cd obcrypt-ffi && cbindgen --config cbindgen.toml --output include/obcrypt.h)
+    - git diff --exit-code obcrypt-ffi/include/obcrypt.h
 
 # Validates the declared MSRV (rust-version = 1.77). Non-blocking: a
 # failure flags that the floor needs revisiting, without gating merges.

@@ -1,0 +1,92 @@
+name: Publish obcrypt-wasm to npm
+
+# Triggers on `wasm/v*` tag pushes to this GitHub mirror. Builds the
+# wasm package with wasm-pack (a single portable artifact — no platform
+# matrix) and publishes to npm using OIDC trusted publishing, so no
+# NPM_TOKEN secret is needed on the GitHub side.
+#
+# One-time setup required before the first publish:
+#
+# 1. Reserve the name. npm's trusted-publisher config attaches to an
+#    EXISTING package, so the very first publish needs a one-off manual
+#    `npm publish` (from a logged-in machine, or with a short-lived
+#    automation token) to create `obcrypt-wasm`; afterwards this
+#    workflow takes over via OIDC. (Mirrors the obcrypt-py 0.0.1 PyPI
+#    name-reservation step.) Confirm the name is free first —
+#    `npm view obcrypt-wasm` should 404.
+#
+# 2. On npmjs.com (package Settings -> Trusted Publisher):
+#      Provider:    GitHub Actions
+#      Owner:       deyanovich
+#      Repository:  obcrypt-rs
+#      Workflow:    publish-npm.yml
+#      Environment: npm
+#
+# 3. On GitHub (Settings -> Environments on this repo): create an
+#    environment named `npm` (optional approval protection).
+#
+# 4. On the authoritative GitLab project: register the protected-tag
+#    pattern `wasm/v*`.
+#
+# Provenance caveat: npm provenance validates that package.json's
+# `repository.url` resolves to the repo the workflow runs in. wasm-pack
+# copies the canonical `https://gitlab.com/oboron/obcrypt-rs` from
+# Cargo.toml, but this CI runs on the github.com/deyanovich mirror — so
+# provenance is intentionally NOT requested (OIDC is used for auth
+# only). If a future release must carry provenance, either point
+# repository.url at the GitHub mirror in this job before publishing, or
+# fall back to an NPM_TOKEN secret.
+#
+# Mirrors the publish-pypi.yml OIDC pattern (PyPI trusted publishing).
+
+on:
+  push:
+    tags:
+      - "wasm/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write # OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+
+      # OIDC trusted publishing needs npm >= 11.5.1, newer than the npm
+      # bundled with Node 20.
+      - name: Update npm for OIDC publishing
+        run: npm install -g npm@latest
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: curl -sSfL https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+
+      - name: Build the npm package
+        run: wasm-pack build --release --target bundler obcrypt-wasm
+
+      # wasm-pack copies the LICENSE files into pkg/ but omits them from
+      # the generated `files` allowlist, so npm would otherwise drop
+      # them from the tarball. Add them back — the README states both
+      # license texts are bundled.
+      - name: Bundle the license texts
+        working-directory: obcrypt-wasm/pkg
+        run: npm pkg set "files[]=LICENSE-APACHE" "files[]=LICENSE-MIT"
+
+      - name: Publish
+        working-directory: obcrypt-wasm/pkg
+        run: npm publish --access public

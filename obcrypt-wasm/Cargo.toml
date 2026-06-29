@@ -2,9 +2,10 @@
 name = "obcrypt-wasm"
 # Decoupled from the workspace version: the npm package follows its
 # own release cadence, independent of the obcrypt Rust crate on
-# crates.io (mirrors the obcrypt-py / PyPI split). 1.0.0 aligns the
-# first stable npm release with the obcrypt 1.0 core.
-version = "1.0.0"
+# crates.io (mirrors the obcrypt-py / PyPI split). Starts at 0.1.0 —
+# the initial npm release; it reaches 1.0 after real-world use, not by
+# tracking the obcrypt core's version.
+version = "0.1.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -52,3 +53,6 @@ wasm-bindgen.workspace = true
 
 [dev-dependencies]
 wasm-bindgen-test.workspace = true
+# Used by the roundtrip suite to cross-check `keyBytes` against the
+# hex key form.
+hex.workspace = true

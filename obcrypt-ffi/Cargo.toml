@@ -1,9 +1,11 @@
 [package]
 name = "obcrypt-ffi"
-# Tracks obcrypt 1.0.x. The C ABI has its own stability surface (the
-# generated header) and is versioned independently; 1.0.0 aligns the
-# first stable ABI with the obcrypt 1.0 core.
-version = "1.0.0"
+# Versioned independently of the obcrypt core: the C ABI has its own
+# surface (the generated header). Starts at 0.1.0 — the initial
+# release; it reaches 1.0 after real-world use. The coarse
+# ABI-generation guard (OBCRYPT_ABI_VERSION) is separate from this and
+# stays 1 across version bumps until the ABI changes incompatibly.
+version = "0.1.0"
 edition = "2021"
 rust-version = "1.77.0"
 authors = ["Bojan Đuričković"]
@@ -19,8 +21,11 @@ publish = false
 [lib]
 name = "obcrypt_ffi"
 # cdylib → libobcrypt_ffi.{so,dylib,dll} for runtime FFI;
-# staticlib → libobcrypt_ffi.a for static embedding.
-crate-type = ["cdylib", "staticlib"]
+# staticlib → libobcrypt_ffi.a for static embedding;
+# rlib → lets the in-repo integration test (tests/conformance.rs) link
+# the exported `extern "C"` functions directly. The rlib is build-only
+# tooling; it is not a distributed artifact.
+crate-type = ["cdylib", "staticlib", "rlib"]
 
 [features]
 # Mirror obcrypt's scheme gating so a consumer can trim the ABI to
@@ -33,3 +38,9 @@ psiv = ["obcrypt/psiv"]
 
 [dependencies]
 obcrypt = { workspace = true, default-features = false }
+
+[dev-dependencies]
+# Conformance harness (tests/conformance.rs): parse the canonical
+# oboron JSONL test vectors and hex-decode their `.hex` obtext.
+serde_json = "1"
+hex.workspace = true

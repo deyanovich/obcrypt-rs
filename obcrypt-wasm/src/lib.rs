@@ -95,6 +95,10 @@ pub fn generate_key_bytes() -> Vec<u8> {
 // Codec classes — one per scheme
 // ---------------------------------------------------------------------------
 
+// rustfmt is non-idempotent on the `#[doc = concat!(...)]` inside this
+// macro body (it re-indents the continuation strings on every pass), so
+// the whole macro is skipped and hand-formatted.
+#[rustfmt::skip]
 macro_rules! impl_codec_class {
     ($name:ident, $scheme_variant:ident, $scheme_lit:literal, $feature:literal) => {
         #[cfg(feature = $feature)]
